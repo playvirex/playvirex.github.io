@@ -207,7 +207,18 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
  font-weight:700;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#04120d}
 .tvdetail .act.off{background:transparent;color:var(--dim);border-color:var(--line);cursor:not-allowed}
 .tvdetail .act.rm{background:transparent;color:var(--crit);border-color:var(--crit)}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+#title{position:fixed;inset:0;z-index:70;background:#000 url(keyart.webp) center right/cover no-repeat;
+ display:flex;align-items:center;cursor:pointer;transition:opacity .6s ease}
+#title:before{content:"";position:absolute;inset:0;
+ background:linear-gradient(90deg,#000 0%,#000c 32%,#0000 68%)}
+#title.out{opacity:0;pointer-events:none}
+#title .tin{position:relative;padding:0 max(24px,6vw);width:100%;max-width:1200px;margin:0 auto;box-sizing:border-box}
+#title h2{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;font-weight:700;
+ font-size:clamp(54px,11vw,140px);letter-spacing:.07em;line-height:1;color:#fff;text-shadow:0 0 40px #c0102080}
+#title .tts{margin-top:26px;font-family:var(--m);font-size:14px;letter-spacing:.42em;color:#ff8f8f;
+ border:1px solid #ff6a6a55;padding:11px 16px 11px 22px;display:inline-block;animation:tblink 2.1s ease-in-out infinite}
+@keyframes tblink{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){#title .tts{animation:none}*{transition:none!important}}
 </style>
 </head>
 <body>
@@ -225,6 +236,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 (function(){var el=document.getElementById('sgsplash');if(!el)return;
  setTimeout(function(){el.classList.add('out');setTimeout(function(){el.remove();},750);},2300);})();
 </script>
+<div id="title">
+  <div class="tin"><h2>VIREX</h2><div class="tts">TOUCH TO START</div></div>
+</div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="ic-energy" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></symbol>
 <symbol id="ic-virus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 7V3M12 21v-4M7 12H3M21 12h-4M8.4 8.4 5.6 5.6M18.4 18.4l-2.8-2.8M15.6 8.4l2.8-2.8M5.6 18.4l2.8-2.8"/></symbol>
@@ -1333,7 +1347,17 @@ if(window.ResizeObserver){
     .observe(document.getElementById('stage'));
 }
 
-newHost();F=FX();fitCanvas();seedParts();render();loop();showBrief();
+newHost();F=FX();fitCanvas();seedParts();render();loop();
+(function(){
+  const t=document.getElementById('title');
+  let started=false;
+  const go=()=>{if(started)return;started=true;
+    t.classList.add('out');setTimeout(()=>t.remove(),650);
+    fitCanvas();seedParts();render();showBrief();};
+  t.addEventListener('click',go);
+  t.addEventListener('touchstart',e=>{e.preventDefault();go()},{passive:false});
+  addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter')go()});
+})();
 document.getElementById('ev').addEventListener('click',e=>{
   if(e.target.tagName==='BUTTON'&&!TUT.started){TUT.started=true;TUT.on=true;setTimeout(tutShow,250)}});
 </script>
