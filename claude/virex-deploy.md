@@ -2,7 +2,7 @@
 
 - 사이트: https://playvirex.github.io
 - 저장소: playvirex/playvirex.github.io (main 브랜치, 루트의 index.html)
-- 사용자가 VIREX를 고쳐 달라고 할 때마다, html 파일을 보내지 말고 이 저장소에 바로 커밋·푸시한다.
+- 실시간 반영: 사용자가 VIREX를 고쳐 달라고 할 때마다, 묻지 말고 html 파일도 보내지 말고 고친 즉시 이 저장소에 커밋·푸시한다 (변경마다 바로 사이트에 반영).
   - 연결: add_repo(owner="playvirex", repo="playvirex.github.io", access="push") → git clone → 수정 → git push origin HEAD:main
 - 게임 시작 전에 SAGATON 스플래시를 약 2초 띄운다. 아래 블록을 `<body>` 바로 뒤에 그대로 넣는다.
 - 사가톤 홈페이지(sagaton.github.io)와는 아직 서로 링크하지 않는다.
