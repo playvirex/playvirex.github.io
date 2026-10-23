@@ -6,7 +6,8 @@
   - 연결: add_repo(owner="playvirex", repo="playvirex.github.io", access="push") → git clone → 수정 → git push origin HEAD:main
 - 게임 시작 전에 SAGATON 스플래시를 약 2초 띄운다. 아래 블록을 `<body>` 바로 뒤에 그대로 넣는다.
 - 사가톤 홈페이지(sagaton.github.io)와는 아직 서로 링크하지 않는다.
-- 지금 저장소에는 키아트(keyart.webp) + "준비 중" 티저 페이지가 들어 있다. 게임을 올리면 index.html을 게임으로 교체한다.
+- 지금 저장소에는 키아트(keyart.webp) + "준비 중" 티저 페이지가 들어 있다. 게임을 올리면 루트 index.html을 게임으로 바로 교체한다.
+- 공개 범위: playvirex.github.io는 사용자만 아는 주소라 공개 저장소·루트 배포로 괜찮다고 사용자가 결정함 (숨은 경로·비공개 배포 불필요). 단, 사가톤 홈페이지에는 절대 올리지 않는다.
 
 ## SAGATON 스플래시 블록
 
