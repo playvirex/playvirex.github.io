@@ -435,7 +435,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261024-230811';
+const BUILD='20261024-232353';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1779,56 +1779,40 @@ document.getElementById('bLog').onclick=logSheet;
    표면은 원본 그림 그대로. 돌리면 두께와 실루엣이 실제로 바뀐다. */
 const GL={ready:false,T:null,r:null,sc:null,cam:null,organs:{},glow:{},fig:null,figKey:'',pts:null,ray:null,dist:700,tex:{}};
 
+/* 평면 스프라이트 — 정점에서 그림을 읽지 않는다(드라이버마다 달라서 깨졌다) */
 const RELIEF_V=`
-uniform sampler2D uMap; uniform float uDepth; uniform float uSide;
 varying vec2 vUv; varying vec3 vN; varying vec3 vP;
-float hgt(vec2 uv){ vec4 t=texture2D(uMap,uv); return max(max(t.r,t.g),t.b)*t.a; }
 void main(){
   vUv=uv;
-  float h=hgt(uv);
-  float e=0.006;
-  float hx=hgt(uv+vec2(e,0.0))-hgt(uv-vec2(e,0.0));
-  float hy=hgt(uv+vec2(0.0,e))-hgt(uv-vec2(0.0,e));
-  vec3 pos=position;
-  pos.z += h*uDepth*uSide;
-  vec3 n=normalize(vec3(-hx*uDepth*14.0, -hy*uDepth*14.0, 1.0));
-  n.z*=uSide;
-  vN=normalize(normalMatrix*n);
-  vec4 mv=modelViewMatrix*vec4(pos,1.0);
+  vN=normalize(normalMatrix*vec3(0.0,0.0,1.0));
+  vec4 mv=modelViewMatrix*vec4(position,1.0);
   vP=mv.xyz;
   gl_Position=projectionMatrix*mv;
 }`;
 
 const RELIEF_F=`
-uniform sampler2D uMap; uniform vec3 uTint; uniform float uGain; uniform float uDim;
-uniform vec3 uLight; uniform float uRim;
+uniform sampler2D uMap; uniform vec3 uTint; uniform float uGain; uniform float uDim; uniform float uRim;
 varying vec2 vUv; varying vec3 vN; varying vec3 vP;
 void main(){
   vec4 t=texture2D(uMap,vUv);
-  if(t.a<0.06) discard;
-  vec3 N=normalize(vN), V=normalize(-vP), L=normalize(uLight);
-  float dif=0.42+0.58*max(0.0,dot(N,L));
-  float rim=pow(1.0-max(0.0,dot(N,V)),2.2)*uRim;
-  vec3 col=t.rgb*uTint*uGain*dif + uTint*rim*0.6;
+  if(t.a<0.04) discard;
+  float lum=max(max(t.r,t.g),t.b);
+  vec3 col=t.rgb*uTint*uGain*(0.85+lum*0.7) + uTint*uRim*lum*0.35;
   gl_FragColor=vec4(col, t.a*uDim);
 }`;
 
 function reliefMat(T,tex,depth,side,tint,gain,rim){
   return new T.ShaderMaterial({
-    uniforms:{uMap:{value:tex},uDepth:{value:depth},uSide:{value:side},
-      uTint:{value:new T.Color(tint)},uGain:{value:gain},uDim:{value:1},
-      uLight:{value:new T.Vector3(-0.4,0.6,1.0)},uRim:{value:rim}},
+    uniforms:{uMap:{value:tex},
+      uTint:{value:new T.Color(tint)},uGain:{value:gain},uDim:{value:1},uRim:{value:rim}},
     vertexShader:RELIEF_V,fragmentShader:RELIEF_F,
-    transparent:true,depthWrite:true,depthTest:true,side:T.DoubleSide});
+    transparent:true,depthWrite:false,depthTest:true,side:T.DoubleSide});
 }
 
 /* 그림 한 장 → 앞뒤로 솟은 두 겹의 덩어리 */
 function reliefMesh(T,tex,w,h,depth,tint,gain,rim,seg){
   const grp=new T.Group();
-  [1,-1].forEach(side=>{
-    const g=new T.PlaneGeometry(w,h,seg||96,seg||96);
-    grp.add(new T.Mesh(g,reliefMat(T,tex,depth,side,tint,gain,rim)));
-  });
+  grp.add(new T.Mesh(new T.PlaneGeometry(w,h,1,1),reliefMat(T,tex,depth,1,tint,gain,rim)));
   return grp;
 }
 
@@ -2042,7 +2026,7 @@ function initGL(T){
   /* 숙주의 몸 — 사장님 해부 렌더가 그대로 입체가 된다 */
   const figKey=HOSTFIG[P.hostIdx]||'figure';
   const fh=(YBOT-YTOP)+52, fw=fh*(620/930);
-  GL.fig=reliefMesh(T,load(figKey),fw,fh,7,0xcdeeff,1.05,0.42,72);
+  GL.fig=reliefMesh(T,load(figKey),fw,fh,0,0xcdeeff,1.05,0.42,2);
   GL.fig.position.y=-((YTOP+YBOT)/2-YMID)+4;
   GL.figKey=figKey;
   sc.add(GL.fig);
