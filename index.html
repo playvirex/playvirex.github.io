@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#070b0a">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
@@ -433,6 +434,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
+const BUILD='20261024-183438';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1556,13 +1558,13 @@ function tvDraw(){
   });
   // 계통 이름
   LINES.forEach(L=>{const a=L.ang*Math.PI/180,rr=742;
-    const ix=Math.cos(a)*(rr-86), iy=Math.sin(a)*(rr-86);
+    const ix=Math.cos(a)*(rr-104), iy=Math.sin(a)*(rr-104);
     const im=imgs['ln_'+L.k];
     if(im&&im.complete&&im.naturalWidth){
       const taken=CAT[L.k].nodes.filter(n=>has(n.id)).length;
-      tctx.globalAlpha=taken?0.95:0.42;
-      tctx.drawImage(im,ix-46,iy-46,92,92);tctx.globalAlpha=1;
-      if(taken){tctx.beginPath();tctx.arc(ix,iy,52,0,7);
+      tctx.globalAlpha=taken?1:0.66;
+      tctx.drawImage(im,ix-56,iy-56,112,112);tctx.globalAlpha=1;
+      if(taken){tctx.beginPath();tctx.arc(ix,iy,62,0,7);
         tctx.strokeStyle=L.col;tctx.globalAlpha=.55;tctx.lineWidth=2;tctx.stroke();tctx.globalAlpha=1}
     }
     tctx.font='700 19px "IBM Plex Sans KR", sans-serif';tctx.textAlign='center';
@@ -2190,6 +2192,18 @@ newHost();F=FX();fitCanvas();seedParts();render();loop();
 })();
 document.getElementById('ev').addEventListener('click',e=>{
   if(e.target.tagName==='BUTTON'&&!TUT.started){TUT.started=true;TUT.on=true;setTimeout(tutShow,250)}});
+/* 새 버전이 올라왔으면 스스로 갱신한다 — 캐시 때문에 옛날 화면이 뜨는 것 방지 */
+(function(){
+  try{
+    fetch('version.txt?x='+Date.now(),{cache:'no-store'})
+      .then(r=>r.ok?r.text():null)
+      .then(v=>{ if(!v)return; v=v.trim();
+        if(v && v!==BUILD && !location.search.includes('v='+v)){
+          location.replace(location.pathname+'?v='+v);
+        }})
+      .catch(()=>{});
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
