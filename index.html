@@ -435,7 +435,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261024-214843';
+const BUILD='20261024-215205';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1832,6 +1832,14 @@ function reliefMesh(T,tex,w,h,depth,tint,gain,rim,seg){
   return grp;
 }
 
+/* 모델 파일이 있으면 그림 대신 진짜 3D 메시를 쓴다.
+   assets/model/<기관id>.glb 를 올리면 자동으로 잡는다. */
+const MODELS={};           // 예: {alv:'assets/model/alv.glb', figure:'assets/model/body.glb'}
+function loadGLB(T,url,onOk){
+  import('./GLTFLoader.js').then(m=>{
+    new m.GLTFLoader().load(url,g=>onOk(g.scene),undefined,e=>console.warn('glb',url,e));
+  }).catch(e=>console.warn('loader',e));
+}
 function initGL(T){
   const cv=document.getElementById('gl');if(!cv)return;
   const r=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true,powerPreference:'high-performance'});
@@ -1846,7 +1854,7 @@ function initGL(T){
   /* 숙주의 몸 — 사장님 해부 렌더가 그대로 입체가 된다 */
   const figKey=HOSTFIG[P.hostIdx]||'figure';
   const fh=(YBOT-YTOP)+52, fw=fh*(620/930);
-  GL.fig=reliefMesh(T,load(figKey),fw,fh,30,0xcdeeff,1.05,0.5,120);
+  GL.fig=reliefMesh(T,load(figKey),fw,fh,7,0xcdeeff,1.05,0.42,72);
   GL.fig.position.y=-((YTOP+YBOT)/2-YMID)+4;
   GL.figKey=figKey;
   sc.add(GL.fig);
@@ -1855,7 +1863,7 @@ function initGL(T){
   COMPS.forEach(c=>{
     const o=ORG3[c.id];if(!o)return;
     const sz=(ORGSZ[c.id]||2.0)*c.r*2;
-    const grp=reliefMesh(T,load('org_'+c.id),sz,sz,sz*0.34,0x9cffe6,1.1,0.9,80);
+    const grp=reliefMesh(T,load('org_'+c.id),sz,sz,sz*0.085,0x9cffe6,1.1,0.8,56);
     grp.position.set(o[0],-o[1],o[2]);
     grp.userData.id=c.id;
     grp.children.forEach(m=>m.userData.id=c.id);
@@ -1875,7 +1883,7 @@ function initGL(T){
   sc.add(GL.pts);
 
   GL.T=T;GL.r=r;GL.sc=sc;GL.cam=cam;GL.ray=new T.Raycaster();GL.ready=true;
-  document.getElementById('body').style.pointerEvents='none';
+  const gc=document.getElementById('gl');if(gc)gc.style.pointerEvents='none';
 }
 
 let _gt=null;
