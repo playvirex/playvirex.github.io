@@ -430,7 +430,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const IMG={org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
+const IMG={figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
  bact:'assets/bact.webp',fungus:'assets/fungus.webp',flora:'assets/flora.webp',
@@ -1283,7 +1283,7 @@ function nextHost(){P.hostIdx++;newHost();document.getElementById('ev').classLis
 const cv=document.getElementById('body'),cx=cv.getContext('2d');
 let W=0,H=0,DPR=1,parts=[],hit=[],imgs={};
 const LABR=['nasal','bron','blood','liver'];  // 오른쪽 라벨, 나머지 왼쪽
-['body','virion','imac','inet','itc'].concat(['org_cns', 'org_liver', 'org_gut', 'org_blood', 'org_alv', 'org_bron', 'org_phar', 'org_nasal']).forEach(k=>{const i=new Image();i.src=IMG[k];imgs[k]=i});
+['body','virion','imac','inet','itc','figure','bgtissue'].concat(['org_cns', 'org_liver', 'org_gut', 'org_blood', 'org_alv', 'org_bron', 'org_phar', 'org_nasal']).forEach(k=>{const i=new Image();i.src=IMG[k];imgs[k]=i});
 function fitCanvas(){const r=cv.parentElement.getBoundingClientRect();
  DPR=Math.min(2,devicePixelRatio||1);W=r.width;H=r.height;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0)}
 function geo(){const s=Math.min(W/300,H/400),ox=W/2,oy=(H-400*s)/2+6;
@@ -1858,25 +1858,41 @@ function drawBody3(){
   hit=[];
   const now=Date.now();
 
-  /* ── 몸통 와이어프레임 ── */
+  /* ── 배경: 조직 깊이, 천천히 흐른다 ── */
+  const bgi=imgs.bgtissue;
+  if(bgi&&bgi.complete&&bgi.naturalWidth){
+    const ar=bgi.naturalWidth/bgi.naturalHeight, sc=Math.max(W/bgi.naturalWidth,H/bgi.naturalHeight)*1.22;
+    const bw=bgi.naturalWidth*sc, bh=bgi.naturalHeight*sc;
+    const dx=W/2-bw/2 - Math.sin((now-B3.t0)/9000)*26 - B3.user*34;
+    const dy=H/2-bh/2 - Math.sin((now-B3.t0)/13000)*16;
+    cx.globalAlpha=.62;cx.drawImage(bgi,dx,dy,bw,bh);cx.globalAlpha=1;
+  }
+
+  /* ── 숙주의 몸: 실제 해부 렌더 ── */
+  const fig=imgs.figure;
+  const yaw=B3.user+Math.sin((now-B3.t0)/4600)*0.38;
+  if(fig&&fig.complete&&fig.naturalWidth){
+    const top=P3(0,YTOP-YMID-10,0), bot=P3(0,YBOT-YMID+34,0);
+    const fh=Math.abs(bot[1]-top[1]);
+    const fw=fh*(fig.naturalWidth/fig.naturalHeight)*Math.max(.13,Math.abs(Math.cos(yaw)));
+    const cxp=(top[0]+bot[0])/2;
+    cx.save();
+    cx.globalAlpha=.34+Math.abs(Math.cos(yaw))*.18;
+    cx.drawImage(fig,cxp-fw/2,Math.min(top[1],bot[1]),fw,fh);
+    cx.restore();
+  }
+
+  /* ── 단층 스캔선: 몸 위에 아주 옅게 ── */
   const R=shellRings();
-  // 가로 링
   R.forEach(rg=>{
+    if(rg.limb)return;
     for(let i=0;i<SEG;i++){
       const a=rg.pts[i],b=rg.pts[(i+1)%SEG];
-      const al=dAlpha((a[3]+b[3])/2)*(rg.limb?.30:.40);
+      const al=dAlpha((a[3]+b[3])/2)*.16;
       cx.strokeStyle='rgba(110,186,162,'+(al*.5).toFixed(3)+')';
-      cx.lineWidth=rg.limb?.7:.85;
+      cx.lineWidth=.8;
       cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke();
     }});
-  // 세로 연결선 (몸통만, 4칸마다)
-  for(let i=0;i<SEG;i+=4){
-    for(let j=0;j<PROF.length-1;j++){
-      const a=R[j].pts[i],b=R[j+1].pts[i];
-      const al=dAlpha((a[3]+b[3])/2)*.34;
-      cx.strokeStyle='rgba(126,214,186,'+al.toFixed(3)+')';cx.lineWidth=.7;
-      cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke();
-    }}
 
   /* ── 장기: 뒤에서 앞으로 ── */
   const order=COMPS.map(c=>{const o=ORG3[c.id];const p=P3(o[0],o[1],o[2]);return{c,p}})
@@ -1892,7 +1908,7 @@ function drawBody3(){
     if(oim&&oim.complete&&oim.naturalWidth){
       const sp=(ORGSZ[c.id]||2.4)*r;
       cx.save();
-      cx.globalAlpha=(on? .68+Math.min(.32,occ/100*.4) : (op?.38:.22))*fade;
+      cx.globalAlpha=(on? .85+Math.min(.15,occ/100*.2) : (op?.42:.24))*fade;
       cx.drawImage(oim,p[0]-sp,p[1]-sp,sp*2,sp*2);
       if(dm>14){ // 손상 조직은 붉게 물든다
         cx.globalCompositeOperation='source-atop';
@@ -1903,6 +1919,10 @@ function drawBody3(){
     }
     hit.push({id:c.id,p:[p[0],p[1]],r:Math.max(r,24*S3)});
     if(on){
+      // 몸 위로 떠오르게 어둡게 깔고 그 위에 발광
+      const gd=cx.createRadialGradient(p[0],p[1],0,p[0],p[1],r*1.25);
+      gd.addColorStop(0,'rgba(2,8,7,'+(.62*fade)+')');gd.addColorStop(1,'rgba(2,8,7,0)');
+      cx.fillStyle=gd;cx.beginPath();cx.arc(p[0],p[1],r*1.25,0,7);cx.fill();
       const gr=cx.createRadialGradient(p[0],p[1],0,p[0],p[1],r);
       gr.addColorStop(0,'rgba(63,224,173,'+((.18+occ/100*.52)*fade)+')');
       gr.addColorStop(1,'rgba(63,224,173,0)');
