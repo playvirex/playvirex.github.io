@@ -15,7 +15,7 @@
  --accent:#3fe0ad;--accent2:#1b7a60;--warn:#e8b354;--crit:#e2554a;
  --f:'IBM Plex Sans KR',system-ui,sans-serif;--m:'IBM Plex Mono',monospace;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;margin:0}
+html,body{height:100%;margin:0;touch-action:manipulation;overscroll-behavior:none}
 body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;line-height:1.5;
  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
  display:flex;justify-content:center;overflow:hidden}
@@ -1354,7 +1354,8 @@ function onTap(cx0,cy0){
   const r=cv.getBoundingClientRect();
   const sx=(cv.width/DPR)/r.width, sy=(cv.height/DPR)/r.height;
   const b=pickAt((cx0-r.left)*sx,(cy0-r.top)*sy);
-  if(!b)return;
+  if(!b){if(typeof B3!=='undefined')B3.focus=false;return}
+  if(typeof B3!=='undefined'){ B3.focus=(b===sel)? !B3.focus : true }
   if(!openC(b)){FLASH.id=b;FLASH.t=6;say(COMPS.find(c=>c.id===b).nm+' — 아직 수용체가 없어 갈 수 없다','bad');render();return}
   sel=b;FLASH.id=b;FLASH.t=6;if(typeof B3!=='undefined')B3.pulse=1;render();if(TUT.on)tutCheck('tap');
 }
@@ -1728,7 +1729,7 @@ document.getElementById('bLog').onclick=logSheet;
 /* ═══ 3D 인체 맵: 회전하는 단층 와이어프레임 + 3차원에 박힌 장기 ═══
    외부 라이브러리 없음. 링(횡단면)을 쌓아 몸통을 만들고 Y·X축 회전 후 원근 투영한다. */
 const B3={user:0,pitch:-0.10,drag:false,moved:0,lx:0,ly:0,on:true,t0:Date.now(),
-  fx:0,fy:0,z:1,pulse:0};
+  fx:0,fy:0,z:1,pulse:0,focus:false};
 const CAM3=880;
 /* 끌어서 침투: 맵 자체가 입력 장치 */
 const DRAG={on:false,from:null,x:0,y:0,target:null};
@@ -1818,7 +1819,7 @@ function seedParts3(){
 function drawBody3(){
   cx.clearRect(0,0,W,H);
   /* 카메라: 고른 기관 쪽으로 밀려들어간다 */
-  const o0=ORG3[sel];
+  const o0=B3.focus?ORG3[sel]:null;
   const tfx=o0? -o0[0]*0.40 : 0, tfy=o0? -o0[1]*0.16 : 0, tz=o0? 1.09 : 1;
   B3.fx+=(tfx-B3.fx)*.055; B3.fy+=(tfy-B3.fy)*.055; B3.z+=(tz-B3.z)*.05;
   if(B3.pulse>0)B3.pulse-=0.045;
@@ -2081,7 +2082,7 @@ function drawBody3(){
         const c2=COMPS.find(c=>c.id===blocked);
         say(c2.nm+' — '+(!unlocked(blocked)?'수용체가 없어 갈 수 없다':'출발 기관 점유율이 20% 이상이어야 한다'),'bad');
         FLASH.id=blocked;FLASH.t=6;render();return}
-      if(mv<=6){sel=from;FLASH.id=from;FLASH.t=6;B3.pulse=1;render();if(TUT.on)tutCheck('tap');return}
+      if(mv<=6){B3.focus=(from===sel)?!B3.focus:true;sel=from;FLASH.id=from;FLASH.t=6;B3.pulse=1;render();if(TUT.on)tutCheck('tap');return}
       render();return;
     }
     if(mv<=6)onTap(e.clientX,e.clientY);
@@ -2090,6 +2091,15 @@ function drawBody3(){
   cv.addEventListener('pointermove',mvh,{passive:false});
   cv.addEventListener('pointerup',up);
   cv.addEventListener('pointercancel',()=>{down=false;DRAG.on=false;DRAG.from=null;DRAG.target=null});
+})();
+/* 더블탭·핀치로 화면이 확대된 채 안 돌아오는 것 차단 */
+(function(){
+  let lastT=0;
+  addEventListener('touchend',e=>{const n=Date.now();
+    if(n-lastT<340){e.preventDefault()} lastT=n;},{passive:false});
+  ['gesturestart','gesturechange','gestureend'].forEach(k=>
+    addEventListener(k,e=>e.preventDefault(),{passive:false}));
+  addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
 })();
 addEventListener('resize',()=>{fitCanvas();seedParts()});
 if(window.ResizeObserver){
