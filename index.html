@@ -430,7 +430,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const IMG={figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
+const IMG={figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
  bact:'assets/bact.webp',fungus:'assets/fungus.webp',flora:'assets/flora.webp',
@@ -447,6 +447,7 @@ const ERAS=[
  {nm:'현대',sub:'21세기',dxMax:6,cure:'antiviral',quar:.3,contact:.85,cap:16,
   note:'PCR·항바이러스제·중환자실. 유전체까지 읽힌다.'}
 ];
+const HOSTFIG=['figure','figureF','figure','figureOld'];   // 숙주별 몸
 const MEDIMG=['medAnc','medMed','medInd','icu'];
 const MEDTXT=[
  ['달인 약초와 연기','"그들은 당신을 모른다. 그저 연기를 피우고 기도할 뿐이다."','이 시대의 의술은 당신에게 닿지 못한다'],
@@ -1283,7 +1284,7 @@ function nextHost(){P.hostIdx++;newHost();document.getElementById('ev').classLis
 const cv=document.getElementById('body'),cx=cv.getContext('2d');
 let W=0,H=0,DPR=1,parts=[],hit=[],imgs={};
 const LABR=['nasal','bron','blood','liver'];  // 오른쪽 라벨, 나머지 왼쪽
-['body','virion','imac','inet','itc','figure','bgtissue'].concat(['org_cns', 'org_liver', 'org_gut', 'org_blood', 'org_alv', 'org_bron', 'org_phar', 'org_nasal']).forEach(k=>{const i=new Image();i.src=IMG[k];imgs[k]=i});
+['body','virion','imac','inet','itc','figure','figureF','figureOld','bgtissue'].concat(['org_cns', 'org_liver', 'org_gut', 'org_blood', 'org_alv', 'org_bron', 'org_phar', 'org_nasal']).forEach(k=>{const i=new Image();i.src=IMG[k];imgs[k]=i});
 function fitCanvas(){const r=cv.parentElement.getBoundingClientRect();
  DPR=Math.min(2,devicePixelRatio||1);W=r.width;H=r.height;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0)}
 function geo(){const s=Math.min(W/300,H/400),ox=W/2,oy=(H-400*s)/2+6;
@@ -1869,7 +1870,7 @@ function drawBody3(){
   }
 
   /* ── 숙주의 몸: 실제 해부 렌더 ── */
-  const fig=imgs.figure;
+  const fig=imgs[HOSTFIG[P.hostIdx]||'figure'];
   const yaw=B3.user+Math.sin((now-B3.t0)/4600)*0.38;
   if(fig&&fig.complete&&fig.naturalWidth){
     const top=P3(0,YTOP-YMID-10,0), bot=P3(0,YBOT-YMID+34,0);
