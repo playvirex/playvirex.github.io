@@ -103,6 +103,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
  border:1px solid rgba(63,224,173,.16);color:var(--fg);border-radius:4px;cursor:pointer;line-height:1.3;
  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);transition:background .18s,border-color .18s}
 .acts button .ic{display:block;font-size:19px;line-height:1}
+.acts button .aic{width:34px;height:34px;margin:0 auto 1px;background:center/contain no-repeat;filter:drop-shadow(0 0 5px rgba(63,224,173,.45))}
+.acts button:disabled .aic{filter:grayscale(.7) brightness(.6)}
 .acts button small{display:block;font-family:var(--m);font-size:11px;color:var(--dim);font-weight:400}
 .acts button .up{color:var(--accent)}.acts button .dn{color:var(--crit)}
 .acts button:disabled{opacity:.3}
@@ -430,7 +432,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const IMG={figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
+const IMG={act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
  bact:'assets/bact.webp',fungus:'assets/fungus.webp',flora:'assets/flora.webp',
@@ -492,6 +494,7 @@ function newHost(){
   if(P.nodes.includes('integ'))COMPS.forEach(c=>{if(c.entry)S.comp[c.id]=20});
   sel='nasal';say('비강 점막 침투 — 초기 점유 '+S.comp.nasal.toFixed(0)+'%','hi');
 }
+const AICON={target:'act_inv',virus:'act_burst',moon:'act_hide',dna:'act_mut',sleep:'act_dorm',burst:'act_burst',ap:'act_ap'};
 const ic=(n,cls)=>'<svg class="i '+(cls||'')+'" aria-hidden="true"><use href="#ic-'+n+'"/></svg>';
 const ic2=ic;
 function say(t,c){S.log.unshift({t:'D'+S.day+' '+t,c});if(S.log.length>70)S.log.pop()}
@@ -1735,7 +1738,7 @@ function render(){
   const canInv=S.comp[sel]===0&&openC(sel),ok=!S.over;
   const hl=TUT.on&&TUT.steps[TUT.i]?TUT.steps[TUT.i].hl:null;
   const A=(k,icn,nm,sub,cond)=>'<button onclick="act(\''+k+'\')" '+(cond&&ok?'':'disabled')
-   +(hl===k?' class="hl"':'')+'><span class="ic">'+ic2(icn)+'</span>'+nm+'<small>'+sub+'</small></button>';
+   +(hl===k?' class="hl"':'')+'><span class="ic aic" style="background-image:url('+IMG[AICON[icn]]+')"></span>'+nm+'<small>'+sub+'</small></button>';
   document.getElementById('acts').innerHTML=
    A('inv','target','침투','에너지 60 · AP1',canInv&&S.ap>0)
   +A('burst','virus','집중 복제','<span class="up">증식↑</span> <span class="dn">들킴↑</span>',S.comp[sel]>0&&S.ap>0)
@@ -1744,7 +1747,7 @@ function render(){
   +(has('shift')&&!S.shiftUsed
     ?A('shift','burst','항원 대변이','<span class="up">면역 초기화</span> 1회',S.ap>=2)
     :A('dorm','sleep','잠복','<span class="up">안전</span> <span class="dn">전파0</span>',S.ap>=2))
-  +'<button disabled style="background:transparent"><span class="ic">'+ic('ap','fill')+'</span>AP '+S.ap+'/2<small>턴당 2</small></button>';
+  +'<button disabled style="background:transparent"><span class="ic aic" style="background-image:url('+IMG.act_ap+')"></span>AP '+S.ap+'/2<small>턴당 2</small></button>';
 
   const g=document.getElementById('bGenome'),nb=document.getElementById('bNext');
   const avail=ALLN.filter(n=>!has(n.id)&&nodeState(n)==='ok').length;
