@@ -435,7 +435,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261024-223046';
+const BUILD='20261024-225040';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1884,6 +1884,138 @@ function xrayify(T,root,tint){
   });
   return out;
 }
+
+/* ═══ 관으로 만든 장기 ═══
+   창자·기관지·폐처럼 가늘고 갈라지는 구조는 AI가 뒷면을 못 만든다.
+   실제 해부 구조가 규칙적이므로 곡선을 따라 관을 둘러 직접 만든다. */
+function tubeAlong(T,pts,r0,r1,seg,rad){
+  const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2])));
+  const g=new T.TubeGeometry(curve,seg||80,r0,rad||10,false);
+  if(r1!==undefined&&r1!==r0){            // 끝으로 갈수록 가늘게
+    const pos=g.attributes.position, N=(seg||80)+1, ring=(rad||10)+1;
+    for(let i=0;i<N;i++){
+      const t=i/(N-1), k=(r0+(r1-r0)*t)/r0;
+      const c=curve.getPointAt(Math.min(1,t));
+      for(let j=0;j<ring;j++){
+        const idx=i*ring+j;
+        const x=pos.getX(idx),y=pos.getY(idx),z=pos.getZ(idx);
+        pos.setXYZ(idx, c.x+(x-c.x)*k, c.y+(y-c.y)*k, c.z+(z-c.z)*k);
+      }
+    }
+    g.computeVertexNormals();
+  }
+  return g;
+}
+function merge(T,list){
+  // 간단 병합: position/normal/uv 만 이어붙인다
+  let vc=0,ic=0;
+  list.forEach(g=>{vc+=g.attributes.position.count; ic+=g.index?g.index.count:0});
+  const pos=new Float32Array(vc*3),nor=new Float32Array(vc*3),uv=new Float32Array(vc*2);
+  const idx=new Uint32Array(ic);
+  let vo=0,io=0;
+  list.forEach(g=>{
+    const p=g.attributes.position,n=g.attributes.normal,u=g.attributes.uv;
+    for(let i=0;i<p.count;i++){
+      pos[(vo+i)*3]=p.getX(i);pos[(vo+i)*3+1]=p.getY(i);pos[(vo+i)*3+2]=p.getZ(i);
+      if(n){nor[(vo+i)*3]=n.getX(i);nor[(vo+i)*3+1]=n.getY(i);nor[(vo+i)*3+2]=n.getZ(i)}
+      if(u){uv[(vo+i)*2]=u.getX(i);uv[(vo+i)*2+1]=u.getY(i)}
+    }
+    if(g.index){const gi=g.index;for(let i=0;i<gi.count;i++)idx[io+i]=gi.getX(i)+vo;io+=gi.count}
+    vo+=p.count;
+  });
+  const out=new T.BufferGeometry();
+  out.setAttribute('position',new T.BufferAttribute(pos,3));
+  out.setAttribute('normal',new T.BufferAttribute(nor,3));
+  out.setAttribute('uv',new T.BufferAttribute(uv,2));
+  out.setIndex(new T.BufferAttribute(idx,1));
+  return out;
+}
+/* 기관지: 갈라지는 관을 재귀로 */
+function bronchiGeom(T,R){
+  const parts=[];
+  parts.push(tubeAlong(T,[[0,R*1.5,0],[0,R*0.6,0],[0,R*0.1,0]],R*0.17,R*0.15,24,12));
+  const grow=(x,y,z,dx,dy,dz,r,depth)=>{
+    if(depth>3||r<R*0.02)return;
+    const L=R*(0.52-depth*0.07);
+    const ex=x+dx*L, ey=y+dy*L, ez=z+dz*L;
+    parts.push(tubeAlong(T,[[x,y,z],[(x+ex)/2+dx*L*0.1,(y+ey)/2,(z+ez)/2],[ex,ey,ez]],r,r*0.72,18,10));
+    const spread=0.55-depth*0.07;
+    [[-1,1],[1,-1]].forEach(([sx,sz],i)=>{
+      const nx=dx*Math.cos(spread)+sx*Math.sin(spread)*0.9;
+      const nz=dz*Math.cos(spread)+sz*Math.sin(spread)*0.55;
+      const ny=dy*0.92-0.18;
+      const L2=Math.hypot(nx,ny,nz);
+      grow(ex,ey,ez,nx/L2,ny/L2,nz/L2,r*0.72,depth+1);
+    });
+  };
+  grow(0,R*0.1,0,-0.55,-0.82,0.12,R*0.13,0);
+  grow(0,R*0.1,0, 0.55,-0.82,-0.12,R*0.13,0);
+  return merge(T,parts);
+}
+/* 위·소장: 위주머니 + 돌돌 말린 소장 + 둘러싼 대장 */
+function gutGeom(T,R){
+  const parts=[];
+  // 위
+  const st=new T.SphereGeometry(R*0.40,22,16);
+  st.scale(1.15,0.86,0.72);st.translate(-R*0.22,R*0.80,0);
+  parts.push(st);
+  parts.push(tubeAlong(T,[[-R*0.1,R*1.25,0],[-R*0.18,R*1.0,0],[-R*0.22,R*0.86,0]],R*0.075,R*0.085,16,10));
+  // 소장 — 나선으로 접힌 관
+  const coil=[];
+  for(let i=0;i<=120;i++){
+    const t=i/120, a=t*Math.PI*7.2;
+    const rr=R*(0.52-t*0.26);
+    coil.push([Math.cos(a)*rr*1.06, R*0.30-t*R*0.70+Math.sin(a*1.7)*R*0.05, Math.sin(a)*rr*0.52]);
+  }
+  parts.push(tubeAlong(T,coil,R*0.088,R*0.072,200,10));
+  // 대장 — 바깥을 ㄷ자로 두른다
+  parts.push(tubeAlong(T,[
+    [R*0.52,-R*0.72,0],[R*0.60,-R*0.1,0],[R*0.56,R*0.42,0],
+    [R*0.18,R*0.56,0],[-R*0.30,R*0.50,0],[-R*0.58,R*0.12,0],
+    [-R*0.56,-R*0.48,0],[-R*0.30,-R*0.80,0]],R*0.125,R*0.105,110,12));
+  return merge(T,parts);
+}
+/* 폐포: 두 엽 + 그 안을 채우는 기관지 가지 */
+function lungGeom(T,R){
+  const parts=[];
+  [-1,1].forEach(s=>{
+    const lobe=new T.SphereGeometry(R*0.52,26,20);
+    lobe.scale(0.80,1.18,0.70);
+    lobe.translate(s*R*0.50,0,0);
+    parts.push(lobe);
+  });
+  const br=bronchiGeom(T,R*0.86);
+  br.translate(0,R*0.22,0);
+  parts.push(br);
+  return merge(T,parts);
+}
+/* 비강·인두: 콧구멍에서 목으로 꺾여 내려가는 통로 */
+function nasalGeom(T,R){
+  const parts=[];
+  [-1,1].forEach(s=>{
+    parts.push(tubeAlong(T,[
+      [s*R*0.28,R*0.92,R*0.52],[s*R*0.26,R*0.72,R*0.30],
+      [s*R*0.20,R*0.42,-R*0.02],[s*R*0.10,R*0.05,-R*0.22]],R*0.17,R*0.13,40,12));
+  });
+  parts.push(tubeAlong(T,[[0,R*0.05,-R*0.22],[0,-R*0.45,-R*0.20],[0,-R*0.95,-R*0.16]],R*0.22,R*0.19,30,14));
+  return merge(T,parts);
+}
+/* 편도·후두: 인두 관 양옆에 편도 두 덩이 */
+function pharGeom(T,R){
+  const parts=[];
+  parts.push(tubeAlong(T,[[0,R*1.0,0],[0,R*0.2,-R*0.05],[0,-R*0.6,0],[0,-R*1.0,R*0.04]],R*0.26,R*0.21,40,14));
+  [-1,1].forEach(s=>{
+    const t=new T.SphereGeometry(R*0.26,18,14);
+    t.scale(0.78,1.25,0.82);t.translate(s*R*0.34,R*0.34,R*0.04);
+    parts.push(t);
+  });
+  const lx=new T.SphereGeometry(R*0.30,18,14);
+  lx.scale(0.9,0.8,0.9);lx.translate(0,-R*0.72,0);
+  parts.push(lx);
+  return merge(T,parts);
+}
+const BUILT={bron:bronchiGeom,gut:gutGeom,alv:lungGeom,nasal:nasalGeom,phar:pharGeom};
+
 function initGL(T){
   const cv=document.getElementById('gl');if(!cv)return;
   const r=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true,powerPreference:'high-performance'});
@@ -1910,7 +2042,13 @@ function initGL(T){
     const grp=new T.Group();
     grp.position.set(o[0],-o[1],o[2]);
     grp.userData.id=c.id;
-    if(MODELS.indexOf(c.id)>=0){
+    if(BUILT[c.id]){
+      const geo=BUILT[c.id](T,sz*0.5);
+      [T.BackSide,T.FrontSide].forEach(side=>{
+        const m=new T.Mesh(geo,xrayMat(T,null,0x9cffe6,1.0,side===T.FrontSide?1.5:0.9,side));
+        m.userData.id=c.id;grp.add(m);
+      });
+    }else if(MODELS.indexOf(c.id)>=0){
       loadGLB(T,'assets/model/'+c.id+'.glb',scene=>{
         scene.updateMatrixWorld(true);
         const xr=xrayify(T,scene,0x9cffe6);
