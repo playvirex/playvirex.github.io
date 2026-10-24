@@ -345,6 +345,42 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
  .row2 button{padding:9px 4px}
  #portrait .pic{flex:0 0 150px;height:150px}
 }
+
+/* ═══ 화면 정리: 정보는 그대로, 테두리와 상자만 걷어낸다 ═══ */
+.goal{background:none;border:0;border-radius:0;padding:4px 2px 5px;margin:4px 0 0;
+  color:var(--fg);font-size:14px}
+.goal b{color:var(--accent)}
+#warnBox .warn{background:none;border:0;border-left:2px solid var(--crit);
+  border-radius:0;padding:4px 0 4px 9px;margin-top:4px}
+.hud{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+  border-top:1px solid rgba(63,224,173,.16);border-bottom:0}
+.hud .bar{max-width:150px}
+.hud .pips{max-width:150px}
+.micro{border-top:1px solid rgba(63,224,173,.10);padding-top:5px;gap:0}
+.micro .mcell{background:none!important;border:0;border-left:1px solid rgba(63,224,173,.10);
+  border-radius:0;padding:4px 10px;min-height:0;backdrop-filter:none;-webkit-backdrop-filter:none}
+.micro .mcell:first-child{border-left:0}
+.micro .mimg{opacity:.22}
+.micro .mcell:after{background:linear-gradient(90deg,rgba(7,11,10,.88),rgba(7,11,10,.62))}
+.micro .b{height:2px;max-width:140px}
+.sym{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:2px 2px 1px}
+.sym.w{border-color:var(--warn)}.sym.c{border-color:var(--crit)}
+#syms{gap:9px}
+#portrait{border:0;background:rgba(8,14,13,.5)}
+#portrait .cap{border-top:1px solid rgba(63,224,173,.12)}
+.acts button{background:rgba(10,18,16,.5);border-color:rgba(63,224,173,.10)}
+.acts button.hl{border-color:var(--accent)}
+.row2 button{background:rgba(10,18,16,.5);border-color:rgba(63,224,173,.10)}
+.row2 .go{background:var(--accent);border-color:var(--accent)}
+#grain{background:
+  repeating-linear-gradient(0deg,rgba(0,0,0,.10) 0 1px,transparent 1px 3px),
+  radial-gradient(120% 84% at 50% 42%,transparent 44%,rgba(2,5,4,.58) 100%)}
+@media (min-width:820px){
+  .goal{font-size:15px;max-width:560px}
+  .hud .bar,.hud .pips{max-width:200px}
+  .micro{max-width:660px}
+  .micro .b{max-width:180px}
+}
 </style>
 </head>
 <body>
@@ -435,7 +471,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261024-235125';
+const BUILD='20261025-001112';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1777,6 +1813,8 @@ document.getElementById('bLog').onclick=logSheet;
 /* ═══ 사장님 그림을 진짜 입체로 ═══
    그림의 밝기를 높이로 읽어 앞뒤로 솟아오르게 한다(변위 매핑).
    표면은 원본 그림 그대로. 돌리면 두께와 실루엣이 실제로 바뀐다. */
+/* 모델마다 정면이 달라 돌려 맞춘다 */
+const ORGROT={cns:[0,Math.PI/2,0]};
 const GL={ready:false,T:null,r:null,sc:null,cam:null,organs:{},glow:{},fig:null,figKey:'',pts:null,ray:null,dist:700,tex:{}};
 
 /* 평면 스프라이트 — 정점에서 그림을 읽지 않는다(드라이버마다 달라서 깨졌다) */
@@ -1848,11 +1886,11 @@ void main(){
     pu=clamp(pu,0.0,1.0); pu.y=1.0-pu.y;
     vec4 a=texture2D(uArt,pu);
     float lum=max(max(a.r,a.g),a.b)*a.a;
-    base=mix(base*0.55, a.rgb*1.35, clamp(lum*1.5,0.0,0.92));
+    base=mix(base*0.6, a.rgb*0.95, clamp(lum*1.3,0.0,0.80));
   }
   float rim=pow(1.0-f,2.0)*uRim;
-  float a2=(0.26+rim*1.25)*uDim;
-  vec3 col=base*uTint*uGain*(0.85+rim*1.9);
+  float a2=(0.17+rim*0.70)*uDim;
+  vec3 col=base*uTint*uGain*(0.75+rim*1.15);
   gl_FragColor=vec4(col, clamp(a2,0.0,0.95));
 }`;
 function xrayMat(T,map,tint,gain,rim,side,art,bbMin,bbSize){
@@ -1862,14 +1900,14 @@ function xrayMat(T,map,tint,gain,rim,side,art,bbMin,bbSize){
       uBBMin:{value:bbMin||new T.Vector3()},uBBSize:{value:bbSize||new T.Vector3(1,1,1)},
       uTint:{value:new T.Color(tint)},uGain:{value:gain},uDim:{value:1},uRim:{value:rim}},
     vertexShader:XRAY_V,fragmentShader:XRAY_F,
-    transparent:true,depthWrite:false,blending:T.AdditiveBlending,side:side});
+    transparent:true,depthWrite:false,blending:T.NormalBlending,side:side});
 }
 /* 모델 하나를 뒷면→앞면 두 번 그려 겹쳐 보이게 한다 */
 function xrayify(T,root,tint,art){
   const out=new T.Group();
   // 모든 조각을 한 좌표계로 모아 그림을 비출 기준을 만든다
   const geos=[];
-  root.traverse(o=>{if(o.isMesh){const g2=o.geometry.clone();g2.applyMatrix4(o.matrixWorld);geos.push({g:g2,map:o.material&&o.material.map?o.material.map:null})}});
+  root.traverse(o=>{if(o.isMesh){const g2=o.geometry.clone();g2.applyMatrix4(o.matrixWorld);geos.push({g:g2,map:null})}});
   const bb=new T.Box3();
   geos.forEach(({g:g2})=>{g2.computeBoundingBox();bb.union(g2.boundingBox)});
   const mn=bb.min.clone(), sz=new T.Vector3();bb.getSize(sz);
@@ -2047,7 +2085,8 @@ function initGL(T){
     }else if(MODELS.indexOf(c.id)>=0){
       loadGLB(T,'assets/model/'+c.id+'.glb',scene=>{
         scene.updateMatrixWorld(true);
-        const xr=xrayify(T,scene,0x9cffe6,GL.tex['org_'+c.id]||load('org_'+c.id));
+        const art=(c.id==='alv')?(GL.tex['org_'+c.id]||load('org_'+c.id)):null;
+        const xr=xrayify(T,scene,0x9cffe6,art);
         // 모델을 기관 크기에 맞춘다
         const box=new T.Box3().setFromObject(xr), size=new T.Vector3();box.getSize(size);
         const k=sz/Math.max(size.x,size.y,size.z);
@@ -2055,7 +2094,9 @@ function initGL(T){
         const ctr=new T.Vector3();box.getCenter(ctr);
         xr.position.sub(ctr.multiplyScalar(k));
         xr.traverse(m=>{if(m.isMesh)m.userData.id=c.id});
-        grp.add(xr);
+        const rot=ORGROT[c.id];
+        if(rot){const wrap=new T.Group();wrap.rotation.set(rot[0],rot[1],rot[2]);wrap.add(xr);grp.add(wrap)}
+        else grp.add(xr);
       });
     }else{
       const rm=reliefMesh(T,load('org_'+c.id),sz,sz,sz*0.085,0x9cffe6,1.1,0.8,56);
@@ -2127,6 +2168,7 @@ function glFrame(W,H,now){
     const cp=cam.position, wp=grp.position;
     const dd=Math.hypot(wp.x-cp.x,wp.y-cp.y,wp.z-cp.z);
     const dim=Math.max(.42,Math.min(1,1.22-(dd-GL.dist+90)/280));
+    const isModel=MODELS.indexOf(c.id)>=0;
     grp.traverse(m=>{
       if(!m.isMesh||!m.material||!m.material.uniforms)return;
       const u=m.material.uniforms;
@@ -2134,9 +2176,9 @@ function glFrame(W,H,now){
         0.42+(dm/100)*1.35*Math.max(.3,t),
         occ>0?1.0:0.74,
         occ>0?0.94-(dm/100)*0.52:0.72);
-      u.uGain.value = occ>0? 1.0+t*1.4 : (op? .66 : .40);
+      u.uGain.value = (occ>0? 1.0+t*1.4 : (op? .66 : .40)) * (isModel?0.34:1);
       if(u.uRim)u.uRim.value = (m.material.side===GL.T.FrontSide?1.5:0.9)*(occ>0? 1+t*.8 : .7);
-      u.uDim.value  = dim*(occ>0?1:(op?.82:.62));
+      u.uDim.value  = dim*(occ>0?1:(op?.82:.62))*(isModel?0.62:1);
     });
     const g=GL.glow[c.id];
     if(g){g.material.opacity=t*0.5;const sz=c.r*(3.2+t*2.6);g.scale.set(sz,sz,1);
@@ -2187,8 +2229,8 @@ const YTOP=14,YBOT=356,YMID=(YTOP+YBOT)/2;
 const SEG=26;                                   // 링 분할 수
 
 /* 장기의 3차원 위치: [좌우, 상하(207 기준), 앞뒤(+가 앞)] */
-const ORGSZ={nasal:1.5,phar:1.8,bron:1.7,alv:1.22,blood:1.45,gut:1.55,liver:1.85,cns:1.6};
-const ORG3={cns:[0,-155,-6],nasal:[2,-112,16],phar:[0,-82,6],bron:[0,-50,-2],
+const ORGSZ={nasal:1.5,phar:1.8,bron:1.5,alv:1.22,blood:1.25,gut:1.55,liver:1.7,cns:0.86};
+const ORG3={cns:[0,-157,-16],nasal:[2,-112,16],phar:[0,-82,6],bron:[0,-50,-2],
  alv:[0,-6,4],blood:[-4,26,-16],liver:[24,82,14],gut:[-8,122,16]};
 
 function rot3(x,y,z){
