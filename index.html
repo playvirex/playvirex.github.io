@@ -82,7 +82,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
  background:rgba(8,14,13,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
  border:1px solid rgba(63,224,173,.16);border-radius:5px;max-height:210px;
  overflow:hidden;display:flex;flex-direction:column}
-#portrait .pic{flex:0 0 124px;height:124px;background:#0a110f center/cover no-repeat;position:relative}
+#portrait .pic{flex:0 0 124px;height:124px;background:#0a110f 50% 12%/cover no-repeat;position:relative}
 #portrait .pic::after{content:'';position:absolute;inset:0;background:var(--tint,transparent);mix-blend-mode:soft-light}
 #portrait .cap{padding:6px 7px;border-top:1px solid var(--line)}
 #portrait .st{font-size:14px;font-weight:600;line-height:1.25}
@@ -432,7 +432,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const IMG={act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
+const IMG={f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
  bact:'assets/bact.webp',fungus:'assets/fungus.webp',flora:'assets/flora.webp',
@@ -449,6 +449,8 @@ const ERAS=[
  {nm:'현대',sub:'21세기',dxMax:6,cure:'antiviral',quar:.3,contact:.85,cap:16,
   note:'PCR·항바이러스제·중환자실. 유전체까지 읽힌다.'}
 ];
+const FEM=[false,true,false,true];
+const PX=k=>(FEM[P.hostIdx]&&IMG['f_'+k])?('f_'+k):k;   // 숙주 성별에 맞는 포즈
 const HOSTFIG=['figure','figureF','figure','figureOld'];   // 숙주별 몸
 const MEDIMG=['medAnc','medMed','medInd','icu'];
 const MEDTXT=[
@@ -1401,7 +1403,7 @@ const SCENE={
        {h:'열이 내렸다',q:'"살 것 같다."'}]
 };
 function showScene(sv,better){
-  plxOff();document.getElementById('evHero').style.backgroundImage='url('+(better?IMG.relief:IMG[POSE[Math.max(0,Math.min(4,sv))]])+')';
+  plxOff();document.getElementById('evHero').style.backgroundImage='url('+IMG[better?PX('relief'):PX(POSE[Math.max(0,Math.min(4,sv))])]+')';
   const set=better?(SCENE.down[sv]||SCENE.down[0]):(SCENE.up[Math.max(0,sv-1)]||SCENE.up[0]);
   document.getElementById('evt').innerHTML=
    '<div class="tag">'+E().nm+' · D'+S.day+' · '+(better?'회복':SEVNM[sv])+'</div><h3>'+set.h+'</h3>'
@@ -1725,7 +1727,7 @@ function render(){
    ||'<span class="sym">무증상</span>';
   const sv=severity();
   const pp=document.getElementById('ppic');
-  pp.style.backgroundImage='url('+IMG[POSE[sv]]+')';pp.style.setProperty('--tint',TINT[sv]);
+  pp.style.backgroundImage='url('+IMG[PX(POSE[sv])]+')';pp.style.setProperty('--tint',TINT[sv]);
   document.getElementById('pst').innerHTML='<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DOT[sv]+';margin-right:6px"></span>'+SEVNM[sv];
   document.getElementById('pvt').innerHTML='체온 '+temp().toFixed(1)+'℃<br>산소 '+spo2()+'%<br>'+ic('foot','fill')+' 전파 '+S.sec+'명';
 
