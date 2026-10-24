@@ -66,7 +66,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 /* 3D 장면 = 화면 전체. UI는 그 위에 떠 있다 */
 #stage{position:fixed;inset:0;z-index:0;overflow:hidden;
  background:radial-gradient(135% 92% at 50% 36%,#0e1c18 0%,#080d0c 58%,#040706 100%)}
-#body{display:block;width:100%;height:100%;touch-action:none}
+#gl,#body{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none}
+#gl{z-index:0}#body{z-index:1;background:transparent}
 /* 비네트 + 주사선 + 그레인 */
 #grain{position:fixed;inset:0;z-index:1;pointer-events:none;
  background:
@@ -397,7 +398,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <symbol id="ic-smoke" viewBox="0 0 24 24"><rect x="3" y="13" width="14" height="4" rx="1"/><path d="M19 13v4M14 13v4M14 9c0-2 3-2 3-4"/></symbol>
 <symbol id="ic-pray" viewBox="0 0 24 24"><path d="M12 3c-1.5 2-3 4-3 7 0 2 1 3 3 3s3-1 3-3c0-3-1.5-5-3-7z"/><path d="M8 20h8"/></symbol>
 </defs></svg>
-<div id="stage"><canvas id="body"></canvas></div>
+<div id="stage"><canvas id="gl"></canvas><canvas id="body"></canvas></div>
 <div id="grain"></div>
 <div id="app">
   <div class="top">
@@ -434,7 +435,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261024-183438';
+const BUILD='20261024-214154';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1378,6 +1379,7 @@ function loop(){
  requestAnimationFrame(loop)}
 const FLASH={id:null,t:0};
 function pickAt(x,y){
+  if(typeof GL!=='undefined'&&GL.ready){const g=glPick(x,y,W,H);if(g)return g}
   let best=null,bd=1e9;
   hit.forEach(h=>{
     let d=Math.hypot(h.p[0]-x,h.p[1]-y);
@@ -1772,6 +1774,196 @@ function render(){
 document.getElementById('bNext').onclick=endTurn;
 document.getElementById('bGenome').onclick=genomeSheet;
 document.getElementById('bLog').onclick=logSheet;
+/* ═══ 진짜 3D: Three.js로 숙주의 몸과 장기를 실제 입체로 세운다 ═══
+   맵 좌표를 그대로 월드 좌표로 쓴다. 위아래만 부호가 반대(캔버스는 아래가 +, 3D는 위가 +). */
+const GL={ready:false,T:null,r:null,sc:null,cam:null,organs:{},glow:{},body:null,pts:null,ray:null,dist:700};
+
+const FRESNEL_V=`varying vec3 vN; varying vec3 vP;
+void main(){ vN=normalize(normalMatrix*normal); vec4 mv=modelViewMatrix*vec4(position,1.0);
+ vP=mv.xyz; gl_Position=projectionMatrix*mv; }`;
+const FRESNEL_F=`uniform vec3 uCol; uniform float uPow; uniform float uInt; uniform float uCore; uniform float uDim;
+varying vec3 vN; varying vec3 vP;
+void main(){ vec3 V=normalize(-vP); float f=pow(1.0-abs(dot(normalize(vN),V)),uPow);
+ float a=(f*uInt+uCore)*uDim;
+ gl_FragColor=vec4(uCol*(f*1.25+uCore)*uDim, clamp(a,0.0,1.0)); }`;
+
+function fres(T,col,pow,int,core){
+  return new T.ShaderMaterial({
+    uniforms:{uCol:{value:new T.Color(col)},uPow:{value:pow},uInt:{value:int},uCore:{value:core},uDim:{value:1}},
+    vertexShader:FRESNEL_V,fragmentShader:FRESNEL_F,
+    transparent:true,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide});
+}
+
+/* 장기마다 다른 입체 — 실루엣만 봐도 뭔지 알게 */
+function organGeom(T,id,r){
+  const g=(()=>{
+    switch(id){
+      case 'cns':   return new T.IcosahedronGeometry(r,3);
+      case 'nasal': return new T.SphereGeometry(r*.95,20,14);
+      case 'phar':  return new T.CapsuleGeometry(r*.6,r*1.1,6,16);
+      case 'bron':  return new T.CylinderGeometry(r*.3,r*.45,r*2.1,14,1,true);
+      case 'alv':   return new T.SphereGeometry(r*.62,24,18);
+      case 'blood': return new T.SphereGeometry(r*.78,22,16);
+      case 'liver': return new T.SphereGeometry(r,22,16);
+      case 'gut':   return new T.TorusKnotGeometry(r*.62,r*.26,110,14,2,3);
+      default:      return new T.SphereGeometry(r,18,12);
+    }})();
+  // 매끈한 구를 울퉁불퉁하게 — 생체처럼
+  if(id!=='gut'&&id!=='bron'){
+    const p=g.attributes.position;
+    for(let i=0;i<p.count;i++){
+      const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+      const n=1+Math.sin(x*.21)*Math.cos(y*.19)*0.07+Math.sin(z*.27)*0.05;
+      p.setXYZ(i,x*n,y*n,z*n);
+    }
+    g.computeVertexNormals();
+  }
+  return g;
+}
+const ORGSCALE={cns:[1,.88,1.05],nasal:[1,1.1,1.1],phar:[1,1,.9],bron:[1,1,1],
+ alv:[1.9,1.25,.85],blood:[1,1.15,.95],liver:[1.5,.62,.9],gut:[1.15,.9,.8]};
+
+function initGL(T){
+  const cv=document.getElementById('gl');if(!cv)return;
+  const r=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true,powerPreference:'high-performance'});
+  r.setClearColor(0x000000,0);
+  const sc=new T.Scene();
+  const cam=new T.PerspectiveCamera(32,1,1,4000);
+
+  /* 몸: 단면 반경을 회전시켜 만든 실제 입체 */
+  const pts=[];
+  PROF.forEach(([y,rx])=>pts.push(new T.Vector2(Math.max(.6,rx),-(y-YMID))));
+  const bodyG=new T.LatheGeometry(pts,48);
+  const body=new T.Mesh(bodyG,fres(T,0x5ad0ff,2.2,1.55,.030));
+  body.scale.set(1,1,.56);                       // 앞뒤로 눌러 사람 비율로
+  sc.add(body);
+
+  /* 팔 */
+  LIMB.forEach(([lx,lz,y0,y1,r0,r1])=>{
+    const h=y1-y0, g=new T.CylinderGeometry(r1,r0,h,14,1,true);
+    const m=new T.Mesh(g,fres(T,0x5ad0ff,2.4,1.05,.018));
+    m.position.set(lx,-((y0+y1)/2-YMID),lz);
+    sc.add(m);
+  });
+
+  /* 장기 */
+  COMPS.forEach(c=>{
+    const o=ORG3[c.id];if(!o)return;
+    const mesh=new T.Mesh(organGeom(T,c.id,c.r*.95),fres(T,0x3fe0ad,1.9,1.6,.09));
+    const s=ORGSCALE[c.id]||[1,1,1];
+    mesh.scale.set(s[0],s[1],s[2]);
+    mesh.position.set(o[0],-o[1],o[2]);
+    mesh.userData.id=c.id;
+    sc.add(mesh);GL.organs[c.id]=mesh;
+
+    // 뒤쪽 발광 — 점유율이 오르면 커진다
+    const sp=new T.Sprite(new T.SpriteMaterial({map:glowTex(T),color:0x3fe0ad,
+      transparent:true,blending:T.AdditiveBlending,depthWrite:false,depthTest:false,opacity:0}));
+    sp.position.copy(mesh.position);sc.add(sp);GL.glow[c.id]=sp;
+  });
+
+  /* 떠다니는 입자 */
+  const N=420,pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    pos[i*3]=(Math.random()-.5)*520;
+    pos[i*3+1]=(Math.random()-.5)*460;
+    pos[i*3+2]=(Math.random()-.5)*340;
+  }
+  const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(pos,3));
+  GL.pts=new T.Points(pg,new T.PointsMaterial({color:0x5fd8bb,size:2.6,sizeAttenuation:true,
+    transparent:true,opacity:.34,blending:T.AdditiveBlending,depthWrite:false}));
+  sc.add(GL.pts);
+
+  GL.T=T;GL.r=r;GL.sc=sc;GL.cam=cam;GL.ray=new T.Raycaster();GL.ready=true;
+  document.getElementById('body').style.pointerEvents='none';
+}
+
+/* 발광용 방사형 텍스처 */
+let _gt=null;
+function glowTex(T){
+  if(_gt)return _gt;
+  const c=document.createElement('canvas');c.width=c.height=128;
+  const g=c.getContext('2d'),gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.35,'rgba(255,255,255,.42)');
+  gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,128,128);
+  _gt=new T.CanvasTexture(c);return _gt;
+}
+
+/* 매 프레임: 게임 상태를 3D에 반영하고 카메라를 놓는다 */
+function glFrame(W,H,now){
+  const T=GL.T,cam=GL.cam;
+  const dpr=Math.min(2,devicePixelRatio||1);
+  GL.r.setPixelRatio(dpr);GL.r.setSize(W,H,false);
+  cam.aspect=W/H;
+
+  const yaw=B3.user+Math.sin((now-B3.t0)/4600)*0.38;
+  const pit=-B3.pitch;
+  const band=W<820?0.42:(H<820?0.46:0.60);
+  const fit=(YBOT-YTOP)/band;
+  const d=(fit/2)/Math.tan(cam.fov*Math.PI/360)/B3.z;
+  GL.dist=d;
+  const fx=B3.fx, fy=-B3.fy;
+  cam.position.set(
+    fx+Math.sin(yaw)*Math.cos(pit)*d,
+    fy+Math.sin(pit)*d,
+    Math.cos(yaw)*Math.cos(pit)*d);
+  cam.lookAt(fx,fy,0);
+  cam.updateProjectionMatrix();
+
+  COMPS.forEach(c=>{
+    const m=GL.organs[c.id];if(!m)return;
+    const occ=S.comp[c.id],dm=S.dmg[c.id],op=openC(c.id);
+    const u=m.material.uniforms;
+    const t=occ/100;
+    u.uCol.value.setRGB(
+      0.25+ (dm/100)*1.5*t,
+      0.88 - (dm/100)*0.55*t,
+      0.68 - (dm/100)*0.42*t);
+    u.uInt.value = occ>0? 1.4+t*2.6 : (op? .62 : .34);
+    u.uCore.value= occ>0? .10+t*.26 : .035;
+    // 카메라에서 먼 쪽은 어둡게 — 앞뒤가 읽히게
+    const wp=m.position, cp=GL.cam.position;
+    const dd=Math.hypot(wp.x-cp.x,wp.y-cp.y,wp.z-cp.z);
+    u.uDim.value=Math.max(.34,Math.min(1,1.25-(dd-GL.dist+90)/260));
+    const puff=1+(occ/100)*.16+(sel===c.id?.05:0);
+    const s=ORGSCALE[c.id]||[1,1,1];
+    m.scale.set(s[0]*puff,s[1]*puff,s[2]*puff);
+    m.rotation.y+=0.0016;
+    const g=GL.glow[c.id];
+    if(g){const k=occ/100;
+      g.material.opacity=k*0.55;
+      const sz=c.r*(3.4+k*2.6);g.scale.set(sz,sz,1);
+      g.material.color.setRGB(0.25+(dm/100)*1.4*k,0.88,0.68);}
+  });
+  GL.pts.rotation.y+=0.0004;
+  GL.r.render(GL.sc,cam);
+}
+
+/* 월드 좌표 → 화면 픽셀. 2D 겹판(라벨·연결선)이 그대로 쓴다 */
+const _v=[];
+function glProject(mx,my,mz,W,H){
+  const T=GL.T;
+  const v=(_v[0]=_v[0]||new T.Vector3()).set(mx,-my,mz);
+  const dz=v.distanceTo(GL.cam.position);
+  v.project(GL.cam);
+  return [(v.x*.5+.5)*W, (-v.y*.5+.5)*H, GL.dist/Math.max(1,dz), dz-GL.dist];
+}
+
+/* 레이캐스트로 장기 집기 */
+function glPick(px,py,W,H){
+  if(!GL.ready)return null;
+  const T=GL.T;
+  GL.ray.setFromCamera(new T.Vector2((px/W)*2-1, -(py/H)*2+1), GL.cam);
+  const hits=GL.ray.intersectObjects(COMPS.map(c=>GL.organs[c.id]).filter(Boolean),false);
+  if(hits.length){
+    // 갈 수 있는 곳을 우선
+    const open=hits.find(h=>openC(h.object.userData.id));
+    return (open||hits[0]).object.userData.id;
+  }
+  return null;
+}
+
 /* ═══ 3D 인체 맵: 회전하는 단층 와이어프레임 + 3차원에 박힌 장기 ═══
    외부 라이브러리 없음. 링(횡단면)을 쌓아 몸통을 만들고 Y·X축 회전 후 원근 투영한다. */
 const B3={user:0,pitch:-0.10,drag:false,moved:0,lx:0,ly:0,on:true,t0:Date.now(),
@@ -1804,6 +1996,7 @@ function rot3(x,y,z){
 }
 let C3=[0,0],S3=1;
 function P3(mx,my,mz){
+  if(GL.ready)return glProject(mx,my,mz,W,H);
   const r=rot3(mx,my,mz), k=CAM3/(CAM3+r[2]);
   return [C3[0]+r[0]*k*S3, C3[1]+r[1]*k*S3, k, r[2]];
 }
@@ -1876,7 +2069,10 @@ function drawBody3(){
   hit=[];
   const now=Date.now();
 
+  if(GL.ready){ try{ glFrame(W,H,now) }catch(e){ GL.ready=false } }
+
   /* ── 배경: 조직 깊이, 천천히 흐른다 ── */
+  if(!GL.ready){
   const bgi=imgs.bgtissue;
   if(bgi&&bgi.complete&&bgi.naturalWidth){
     const ar=bgi.naturalWidth/bgi.naturalHeight, sc=Math.max(W/bgi.naturalWidth,H/bgi.naturalHeight)*1.22;
@@ -1911,6 +2107,7 @@ function drawBody3(){
       cx.lineWidth=.8;
       cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke();
     }});
+  }   /* ← 여기까지 2D 전용 */
 
   /* ── 장기: 뒤에서 앞으로 ── */
   const order=COMPS.map(c=>{const o=ORG3[c.id];const p=P3(o[0],o[1],o[2]);return{c,p}})
@@ -1922,7 +2119,7 @@ function drawBody3(){
     const fade=behind? .42 : 1;
     const on=occ>0,op=openC(c.id);
     /* 장기 스프라이트 — 동그라미 대신 실제 장기 */
-    const oim=imgs['org_'+c.id];
+    const oim=GL.ready?null:imgs['org_'+c.id];
     if(oim&&oim.complete&&oim.naturalWidth){
       const sp=(ORGSZ[c.id]||2.4)*r;
       cx.save();
@@ -1936,6 +2133,13 @@ function drawBody3(){
       cx.restore();
     }
     hit.push({id:c.id,p:[p[0],p[1]],r:Math.max(r,24*S3)});
+    if(GL.ready){ /* 3D가 장기를 직접 그린다 — 2D는 선택 표시만 */
+      if(sel===c.id){cx.beginPath();cx.arc(p[0],p[1],r*.92,0,7);
+        cx.strokeStyle='rgba(99,245,195,.9)';cx.lineWidth=2;cx.stroke()}
+      if(FLASH.id===c.id&&FLASH.t>0){cx.beginPath();cx.arc(p[0],p[1],r+6+(6-FLASH.t),0,7);
+        cx.strokeStyle='rgba(255,255,255,'+(FLASH.t/9)+')';cx.lineWidth=2;cx.stroke()}
+      return;
+    }
     if(on){
       // 몸 위로 떠오르게 어둡게 깔고 그 위에 발광
       const gd=cx.createRadialGradient(p[0],p[1],0,p[0],p[1],r*1.25);
@@ -1979,7 +2183,7 @@ function drawBody3(){
   });
 
   /* ── 입자 ── */
-  parts3.forEach(q=>{
+  if(!GL.ready)parts3.forEach(q=>{
     q.ph+=q.sp;
     const a=q.ph, x=q.base[0]+Math.cos(a)*(q.x-q.base[0])-Math.sin(a)*(q.z-q.base[2]);
     const z=q.base[2]+Math.sin(a)*(q.x-q.base[0])+Math.cos(a)*(q.z-q.base[2]);
@@ -2204,6 +2408,10 @@ document.getElementById('ev').addEventListener('click',e=>{
       .catch(()=>{});
   }catch(e){}
 })();
+</script>
+<script type="module">
+import * as THREE from './three.module.min.js';
+try{ initGL(THREE); }catch(e){ console.error('GL',e) }
 </script>
 </body>
 </html>
