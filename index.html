@@ -435,7 +435,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261024-215205';
+const BUILD='20261024-222723';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1834,11 +1834,55 @@ function reliefMesh(T,tex,w,h,depth,tint,gain,rim,seg){
 
 /* 모델 파일이 있으면 그림 대신 진짜 3D 메시를 쓴다.
    assets/model/<기관id>.glb 를 올리면 자동으로 잡는다. */
-const MODELS={};           // 예: {alv:'assets/model/alv.glb', figure:'assets/model/body.glb'}
+const MODELS=['liver'];      // 여기에 기관 id를 넣으면 assets/model/<id>.glb 를 쓴다
+let _gltf=null;
 function loadGLB(T,url,onOk){
-  import('./GLTFLoader.js').then(m=>{
-    new m.GLTFLoader().load(url,g=>onOk(g.scene),undefined,e=>console.warn('glb',url,e));
+  const go=()=>_gltf.load(url,g=>onOk(g.scene),undefined,e=>console.warn('glb',url,e));
+  if(_gltf)return go();
+  Promise.all([import('./GLTFLoader.js'),import('./DRACOLoader.js')]).then(([L,D])=>{
+    const dl=new D.DRACOLoader();dl.setDecoderPath('./draco/');
+    _gltf=new L.GLTFLoader();_gltf.setDRACOLoader(dl);go();
   }).catch(e=>console.warn('loader',e));
+}
+
+/* 투시 재질: 앞뒤를 모두 반투명으로 그려 속이 비친다 */
+const XRAY_V=`varying vec3 vN; varying vec3 vP; varying vec2 vUv;
+void main(){ vUv=uv; vN=normalize(normalMatrix*normal);
+ vec4 mv=modelViewMatrix*vec4(position,1.0); vP=mv.xyz;
+ gl_Position=projectionMatrix*mv; }`;
+const XRAY_F=`uniform sampler2D uMap; uniform float uHasMap;
+uniform vec3 uTint; uniform float uGain; uniform float uDim; uniform float uRim;
+varying vec3 vN; varying vec3 vP; varying vec2 vUv;
+void main(){
+  vec3 N=normalize(vN), V=normalize(-vP);
+  float f=abs(dot(N,V));
+  vec3 base = uHasMap>0.5 ? texture2D(uMap,vUv).rgb : vec3(0.35,0.9,0.78);
+  float rim=pow(1.0-f,2.0)*uRim;
+  // 정면은 투명하고 가장자리는 밝다 — 조직을 꿰뚫어 보는 느낌
+  float a=(0.26+rim*1.25)*uDim;
+  vec3 col=base*uTint*uGain*(0.85+rim*1.9);
+  gl_FragColor=vec4(col, clamp(a,0.0,0.95));
+}`;
+function xrayMat(T,map,tint,gain,rim,side){
+  return new T.ShaderMaterial({
+    uniforms:{uMap:{value:map||null},uHasMap:{value:map?1:0},
+      uTint:{value:new T.Color(tint)},uGain:{value:gain},uDim:{value:1},uRim:{value:rim}},
+    vertexShader:XRAY_V,fragmentShader:XRAY_F,
+    transparent:true,depthWrite:false,blending:T.AdditiveBlending,side:side});
+}
+/* 모델 하나를 뒷면→앞면 두 번 그려 겹쳐 보이게 한다 */
+function xrayify(T,root,tint){
+  const out=new T.Group();
+  root.traverse(o=>{
+    if(!o.isMesh)return;
+    const map=o.material&&o.material.map?o.material.map:null;
+    [T.BackSide,T.FrontSide].forEach(side=>{
+      const m=new T.Mesh(o.geometry,xrayMat(T,map,tint,1.0,side===T.FrontSide?1.5:0.9,side));
+      m.applyMatrix4(o.matrixWorld);
+      out.add(m);
+    });
+  });
+  return out;
 }
 function initGL(T){
   const cv=document.getElementById('gl');if(!cv)return;
@@ -1863,10 +1907,27 @@ function initGL(T){
   COMPS.forEach(c=>{
     const o=ORG3[c.id];if(!o)return;
     const sz=(ORGSZ[c.id]||2.0)*c.r*2;
-    const grp=reliefMesh(T,load('org_'+c.id),sz,sz,sz*0.085,0x9cffe6,1.1,0.8,56);
+    const grp=new T.Group();
     grp.position.set(o[0],-o[1],o[2]);
     grp.userData.id=c.id;
-    grp.children.forEach(m=>m.userData.id=c.id);
+    if(MODELS.indexOf(c.id)>=0){
+      loadGLB(T,'assets/model/'+c.id+'.glb',scene=>{
+        scene.updateMatrixWorld(true);
+        const xr=xrayify(T,scene,0x9cffe6);
+        // 모델을 기관 크기에 맞춘다
+        const box=new T.Box3().setFromObject(xr), size=new T.Vector3();box.getSize(size);
+        const k=sz/Math.max(size.x,size.y,size.z);
+        xr.scale.setScalar(k);
+        const ctr=new T.Vector3();box.getCenter(ctr);
+        xr.position.sub(ctr.multiplyScalar(k));
+        xr.traverse(m=>{if(m.isMesh)m.userData.id=c.id});
+        grp.add(xr);
+      });
+    }else{
+      const rm=reliefMesh(T,load('org_'+c.id),sz,sz,sz*0.085,0x9cffe6,1.1,0.8,56);
+      rm.children.forEach(m=>m.userData.id=c.id);
+      grp.add(rm);
+    }
     sc.add(grp);GL.organs[c.id]=grp;
 
     const sp=new T.Sprite(new T.SpriteMaterial({map:glowTex(T),color:0x3fe0ad,
@@ -1932,14 +1993,15 @@ function glFrame(W,H,now){
     const cp=cam.position, wp=grp.position;
     const dd=Math.hypot(wp.x-cp.x,wp.y-cp.y,wp.z-cp.z);
     const dim=Math.max(.42,Math.min(1,1.22-(dd-GL.dist+90)/280));
-    grp.children.forEach(m=>{
+    grp.traverse(m=>{
+      if(!m.isMesh||!m.material||!m.material.uniforms)return;
       const u=m.material.uniforms;
       u.uTint.value.setRGB(
         0.42+(dm/100)*1.35*Math.max(.3,t),
         occ>0?1.0:0.74,
         occ>0?0.94-(dm/100)*0.52:0.72);
       u.uGain.value = occ>0? 1.0+t*1.4 : (op? .66 : .40);
-      u.uRim.value  = occ>0? .8+t*1.3 : .35;
+      if(u.uRim)u.uRim.value = (m.material.side===GL.T.FrontSide?1.5:0.9)*(occ>0? 1+t*.8 : .7);
       u.uDim.value  = dim*(occ>0?1:(op?.82:.62));
     });
     const g=GL.glow[c.id];
@@ -1963,7 +2025,7 @@ function glPick(px,py,W,H){
   if(!GL.ready)return null;
   const T=GL.T;
   GL.ray.setFromCamera(new T.Vector2((px/W)*2-1, -(py/H)*2+1), GL.cam);
-  const objs=[];COMPS.forEach(c=>{const g=GL.organs[c.id];if(g)g.children.forEach(m=>objs.push(m))});
+  const objs=[];COMPS.forEach(c=>{const g=GL.organs[c.id];if(g)g.traverse(m=>{if(m.isMesh)objs.push(m)})});
   const hits=GL.ray.intersectObjects(objs,false);
   if(hits.length){
     const open=hits.find(h=>openC(h.object.userData.id));
