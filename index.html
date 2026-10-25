@@ -541,7 +541,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-172046';
+const BUILD='20261025-173119';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1241,7 +1241,11 @@ function FX(){
     if(f.special)F.sp[f.special]=true;
   });
   if(F.sp.noPenalty)for(const k in F.rec)if(F.rec[k]<1)F.rec[k]=1;
-  F.fit=Math.max(0,Math.round(F.fit*(1-F.fitCut)));
+  /* 向性을 넓힐수록 급격히 비싸진다 — 모든 문을 여는 열쇠는 어느 문도 잘 열지 못한다.
+     하나는 공짜, 둘부터 제곱으로 붙는다. 범친화성(noPenalty)을 찍은 경우만 면제. */
+  F.trop=ALLN.filter(n=>n.unlock&&n.unlock.length&&P.nodes.includes(n.id)).length;
+  if(!F.sp.noPenalty){const x=Math.max(0,F.trop-1);F.fit+=x*x*3.0}
+  F.fit=Math.max(0,Math.min(88,Math.round(F.fit*(1-F.fitCut))));
   return F;
 }
 let F=null;
@@ -1450,6 +1454,7 @@ function act(k){
   if(k==='mut'){
     if(S.ap<2)return say('변이에는 AP 2 필요');
     if(F.sp.nomut)return say('대형 게놈은 항원 변이가 불가능하다','bad');
+    if(S.ab<8)return say('회피할 항체가 아직 없다 — 숙주가 항체를 만든 뒤에 쓸 것','bad');
     if(S.mp<90)return say('에너지 부족','bad');
     S.mp-=90;S.ap=0;
     let pr=.7+(F.sp.fastPol?.2:0)-(F.sp.proof?.42:0);
@@ -2012,7 +2017,12 @@ function render(){
    A('inv','target','침투','에너지 60 · AP1',canInv&&S.ap>0)
   +A('burst','virus','집중 복제','<span class="up">증식↑</span> <span class="dn">들킴↑</span>',S.comp[sel]>0&&S.ap>0)
   +A('hide','moon','발현 억제','<span class="up">들킴↓</span> <span class="dn">증식0</span>',S.ap>0)
-  +A('mut','dna','변이','<span class="up">항체회피</span> 에너지 90',S.ap>=2)
+  /* 변이는 항체가 있어야 의미가 있다 — 없을 때 눌러서 에너지만 날리지 않게 막는다 */
+  +A('mut','dna','변이',
+     F.sp.nomut ? '<span class="dn">대형 게놈 — 불가</span>'
+     : S.ab<8   ? '<span class="dn">회피할 항체 없음</span>'
+     : '<span class="up">항체 −45</span> 에너지 90',
+     S.ap>=2&&S.mp>=90&&S.ab>=8&&!F.sp.nomut)
   +(has('shift')&&!S.shiftUsed
     ?A('shift','burst','항원 대변이','<span class="up">면역 초기화</span> 1회',S.ap>=2)
     :A('dorm','sleep','잠복','<span class="up">안전</span> <span class="dn">전파0</span>',S.ap>=2))
@@ -2937,7 +2947,7 @@ const ARCH={
   neuro:{nm:'신경친화형',n:['avid','cd4','bbb']},
   enter:{nm:'장관형',n:['shed','nonenv']}
 };
-const DEVKEY='mycoplasma1889';
+const DEVKEY='dev0118';
 const DEV=(()=>{try{return new URLSearchParams(location.search).get('dev')===DEVKEY}catch(e){return false}})();
 function devPanel(){
   if(!DEV||document.getElementById('devp'))return;
