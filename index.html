@@ -22,6 +22,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
  display:flex;justify-content:center;overflow:hidden}
 #app{width:100%;max-width:480px;display:flex;flex-direction:column;height:100%;overflow:hidden;
  padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+/* 좁은 화면에서 레일은 없는 셈 친다 — 순서는 아래에서 직접 못박는다 */
+#rail-l,#rail-r{display:contents}
+.top{order:0}#rail-l>.goal{order:1}#warnBox{order:2}.hud{order:3}.micro{order:4}
+#mid{order:5}#pick{order:6}#tut{order:7}.acts{order:8}.row2{order:9}
 .top{display:flex;justify-content:space-between;align-items:center;padding:8px 2px 5px;border-bottom:1px solid rgba(63,224,173,.14)}
 .era{font-family:var(--m);font-size:12px;letter-spacing:.14em;color:var(--accent)}
 .top h1{margin:0;font-size:17px;letter-spacing:.3em;font-weight:600}
@@ -381,6 +385,47 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
   .micro{max-width:660px}
   .micro .b{max-width:180px}
 }
+
+/* ═══ 넓은 화면: 숙주를 가운데 비워두고 모든 패널을 양옆으로 민다 ═══ */
+@media (min-width:1180px){
+ #app{display:grid;align-content:stretch;
+   grid-template-columns:minmax(286px,340px) minmax(0,1fr) minmax(286px,340px);
+   grid-template-rows:auto minmax(0,1fr);
+   column-gap:34px;padding-left:40px;padding-right:40px}
+ .top{grid-column:1/-1;grid-row:1}
+ #rail-l,#rail-r{display:flex;flex-direction:column;gap:6px;min-height:0;grid-row:2}
+ #rail-l{grid-column:1;justify-content:flex-start;padding-top:6px}
+ #rail-r{grid-column:3;justify-content:flex-end;padding-bottom:8px}
+ #tut{grid-column:2;grid-row:2;align-self:end;margin-bottom:10px}
+
+ /* 레일 안에서는 가로로 넓힐 이유가 없다 — 폭을 레일에 맞춘다 */
+ .goal,#warnBox,.micro,#pick{max-width:none}
+ .goal{margin:0;padding:2px 0 6px}
+ .hud{grid-template-columns:1fr 1fr;margin-top:0;border-bottom:1px solid rgba(63,224,173,.16)}
+ .hud .cell{padding:7px 10px}
+ .hud .cell:nth-child(3){border-left:0}
+ .hud .cell:nth-child(-n+2){border-bottom:1px solid rgba(63,224,173,.10)}
+ .hud .bar,.hud .pips{max-width:none}
+ .micro{grid-template-columns:1fr 1fr 1fr}
+ .micro .b{max-width:none}
+ #pick{margin-bottom:0}
+
+ /* 오른쪽 레일: 증상 → 숙주 초상 → 행동 → 턴 */
+ #mid{flex:0 1 auto;min-height:0;display:block;margin:0 0 6px}
+ #syms{position:static;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:7px}
+ #portrait{position:static;transform:none;width:100%;flex-basis:auto;max-height:none;
+   margin:0;align-self:auto;display:flex;flex-direction:column}
+ #portrait .pic{flex:0 0 190px;height:190px}
+ .acts{grid-template-columns:1fr 1fr;max-width:none;margin:0;gap:6px}
+ .acts button{padding:9px 4px;font-size:14px}
+ .row2{grid-template-columns:1fr 1fr;max-width:none;margin:6px 0 0;padding-bottom:0;gap:6px}
+ .row2 .go{grid-column:1/-1}
+}
+@media (min-width:1180px) and (max-height:900px){
+ #portrait .pic{flex:0 0 150px;height:150px}
+ .acts button{padding:7px 4px}
+ .row2 button{padding:10px 4px}
+}
 </style>
 </head>
 <body>
@@ -441,22 +486,26 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
     <div><div class="era" id="eraName">고대</div><h1>VIREX</h1><div class="dname" id="dname"></div></div>
     <div class="clk"><b id="clk">D0</b><span id="phase">오전</span></div>
   </div>
-  <div class="goal" id="goal"></div>
-  <div id="warnBox"></div>
-  <div class="hud" id="hud"></div>
-  <div class="micro" id="micro"></div>
-  <div id="mid">
-    <div id="syms"></div>
-    <div id="portrait"><div class="pic" id="ppic"></div>
-      <div class="cap"><div class="st" id="pst"></div><div class="vt" id="pvt"></div></div></div>
+  <div id="rail-l">
+    <div class="goal" id="goal"></div>
+    <div id="warnBox"></div>
+    <div class="hud" id="hud"></div>
+    <div class="micro" id="micro"></div>
+    <div id="pick"></div>
   </div>
-  <div id="pick"></div>
+  <div id="rail-r">
+    <div id="mid">
+      <div id="syms"></div>
+      <div id="portrait"><div class="pic" id="ppic"></div>
+        <div class="cap"><div class="st" id="pst"></div><div class="vt" id="pvt"></div></div></div>
+    </div>
+    <div class="acts" id="acts"></div>
+    <div class="row2">
+      <button id="bGenome">스킬트리</button><button id="bLog">기록</button>
+      <button class="go" id="bNext">다음 턴 ▶</button>
+    </div>
+  </div>
   <div id="tut"><div class="box"><div class="step" id="tstep"></div><p id="ttext"></p><div class="btns" id="tbtns"></div></div></div>
-  <div class="acts" id="acts"></div>
-  <div class="row2">
-    <button id="bGenome">스킬트리</button><button id="bLog">기록</button>
-    <button class="go" id="bNext">다음 턴 ▶</button>
-  </div>
 </div>
 <div id="treeView">
   <div class="tvtop">
@@ -471,7 +520,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-105442';
+const BUILD='20261025-105952';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
