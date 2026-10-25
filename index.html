@@ -471,7 +471,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-102732';
+const BUILD='20261025-105442';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1815,7 +1815,14 @@ document.getElementById('bLog').onclick=logSheet;
    표면은 원본 그림 그대로. 돌리면 두께와 실루엣이 실제로 바뀐다. */
 /* 모델마다 정면이 달라 돌려 맞춘다 */
 const ORGROT={cns:[0,Math.PI/2,0]};
-const GL={ready:false,T:null,r:null,sc:null,cam:null,organs:{},glow:{},fig:null,figKey:'',pts:null,ray:null,dist:700,tex:{}};
+const GL={ready:false,T:null,r:null,sc:null,cam:null,organs:{},glow:{},fig:null,figKey:'',pts:null,ray:null,dist:700,tex:{},bodies:{},body3:null,bodyKey:''};
+/* 숙주마다 몸이 다르다 — 31세 남 / 44세 여 / 26세 남 / 72세 여 */
+const BODYGLB=['body','bodyF','body','bodyF'];
+/* s=키, p=앞으로 숙인 각, g·d=밝기, c=살빛. 노년은 작고 굽고 핏기가 없다 */
+const BODYTUNE=[{s:1,p:0,g:1,d:1,c:0xbfe4ff},
+                {s:0.965,p:0,g:1,d:1,c:0xc6e2ff},
+                {s:1,p:0,g:1,d:1,c:0xbfe4ff},
+                {s:0.935,p:0.075,g:0.86,d:0.88,c:0xd2dbe6}];
 
 /* 평면 스프라이트 — 정점에서 그림을 읽지 않는다(드라이버마다 달라서 깨졌다) */
 const RELIEF_V=`
@@ -2070,24 +2077,44 @@ function initGL(T){
   GL.figKey=figKey;
   sc.add(GL.fig);
   /* 몸 모델이 있으면 평면 그림 대신 그것을 쓴다 */
-  loadGLB(T,'assets/model/body.glb',bs=>{
-    bs.updateMatrixWorld(true);
-    const xb=xrayify(T,bs,0xbfe4ff,null);
-    const bb=new T.Box3().setFromObject(xb),bs2=new T.Vector3();bb.getSize(bs2);
-    /* 전신 모델에서 머리~골반이 맵의 YTOP~YBOT 과 겹치도록 맞춘다.
-       사람은 전체 키의 약 55%가 머리~골반이다. */
-    const span=YBOT-YTOP;                      // 342
-    const k=(span/0.55)/bs2.y;                 // 전신 높이 = 622
-    xb.scale.setScalar(k);
-    const ctr=new T.Vector3();bb.getCenter(ctr);
-    xb.position.sub(ctr.multiplyScalar(k));
-    const half=(bs2.y*k)/2;
-    xb.position.y += (span/2+14) - half;       // 정수리를 맵 위쪽에 건다
-    xb.traverse(m=>{if(m.isMesh){m.renderOrder=-1;
-      const u=m.material.uniforms;u.uGain.value=0.30;u.uRim.value=1.9;u.uDim.value=0.55}});
-    GL.body3=xb; sc.add(xb);
-    GL.fig.visible=false;                     // 평면 그림은 숨긴다
-  });
+  GL.mountBody=(idx)=>{
+    const key=BODYGLB[idx]||'body', tn=BODYTUNE[idx]||BODYTUNE[0];
+    if(GL.bodyKey===key+'|'+idx)return;
+    const show=xb=>{
+      if(GL.body3&&GL.body3!==xb)GL.body3.visible=false;
+      xb.visible=true;GL.body3=xb;GL.bodyKey=key+'|'+idx;
+      /* 나이는 자세와 빛깔로 읽힌다 — 작아지고, 숙이고, 핏기가 가신다 */
+      xb.scale.setScalar(xb.userData.k*tn.s);
+      xb.position.y=xb.userData.y0+(1-tn.s)*((YBOT-YTOP)*0.42);
+      xb.rotation.x=tn.p;
+      xb.traverse(m=>{if(m.isMesh&&m.material.uniforms){
+        const u=m.material.uniforms;
+        u.uGain.value=0.30*tn.g;u.uRim.value=1.9;u.uDim.value=0.55*tn.d;
+        if(u.uTint)u.uTint.value.setHex(tn.c);
+      }});
+      GL.fig.visible=false;                   // 평면 그림은 숨긴다
+    };
+    if(GL.bodies[key]){show(GL.bodies[key]);return}
+    loadGLB(T,'assets/model/'+key+'.glb',bs=>{
+      bs.updateMatrixWorld(true);
+      const xb=xrayify(T,bs,0xbfe4ff,null);
+      const bb=new T.Box3().setFromObject(xb),bs2=new T.Vector3();bb.getSize(bs2);
+      /* 전신 모델에서 머리~골반이 맵의 YTOP~YBOT 과 겹치도록 맞춘다.
+         사람은 전체 키의 약 55%가 머리~골반이다. */
+      const span=YBOT-YTOP;                      // 342
+      const k=(span/0.55)/bs2.y;                 // 전신 높이 = 622
+      xb.scale.setScalar(k);
+      const ctr=new T.Vector3();bb.getCenter(ctr);
+      xb.position.sub(ctr.multiplyScalar(k));
+      const half=(bs2.y*k)/2;
+      xb.position.y += (span/2+14) - half;       // 정수리를 맵 위쪽에 건다
+      xb.userData.k=k; xb.userData.y0=xb.position.y;
+      xb.traverse(m=>{if(m.isMesh)m.renderOrder=-1});
+      GL.bodies[key]=xb; xb.visible=false; sc.add(xb);
+      if((BODYGLB[P.hostIdx]||'body')===key)show(xb);
+    });
+  };
+  GL.mountBody(P.hostIdx);
 
   /* 장기 — 각각 자기 그림이 솟아오른다 */
   COMPS.forEach(c=>{
@@ -2183,6 +2210,7 @@ function glFrame(W,H,now){
   cam.updateProjectionMatrix();
 
   /* 숙주가 바뀌면 몸 그림도 바뀐다 */
+  if(GL.mountBody)GL.mountBody(P.hostIdx);
   const fk=HOSTFIG[P.hostIdx]||'figure';
   if(GL.fig&&fk!==GL.figKey&&IMG[fk]){
     const t=new T.TextureLoader().load(IMG[fk]);
