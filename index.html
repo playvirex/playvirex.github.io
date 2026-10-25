@@ -565,7 +565,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-213322';
+const BUILD='20261025-215623';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -609,23 +609,65 @@ function fireAct(btn,k){
   if(btn){btn.classList.remove('fire');void btn.offsetWidth;btn.classList.add('fire')}
   act(k);
 }
-/* 칸이 막힌 이유를 그 자리에서 말해 준다 — 트리를 열어보기 전에 알아야 한다 */
+/* 이미 점유한 칸에서 목표까지, EP 가 가장 적게 드는 길을 찾는다(너비 우선) */
+function cheapPath(goal){
+  const start=COMPS.filter(c=>S.comp[c.id]>=20).map(c=>c.id);
+  if(!start.length)return null;
+  /* 한 칸을 여는 노드가 여럿일 수 있고, 한 노드가 여러 칸을 연다.
+     그래서 선택지를 모두 가지치기하며 산 것을 들고 다닌다. */
+  const openers=k=>ALLN.filter(n=>n.unlock&&n.unlock.includes(k)&&!P.nodes.includes(n.id));
+  const q=start.map(s0=>({id:s0,c:0,path:[],buy:[]}));
+  const seen={};
+  while(q.length){
+    q.sort((a,b)=>a.c-b.c);
+    const cur=q.shift();
+    if(cur.id===goal)return {path:cur.path,buy:cur.buy,ep:cur.c};
+    (ADJ[cur.id]||[]).forEach(nx=>{
+      const os=openers(nx);
+      const opts=os.length? os.map(n=>cur.buy.indexOf(n.id)>=0?{id:null,c:0}:{id:n.id,c:n.c})
+                          : [{id:null,c:0}];
+      const uniq={};
+      opts.forEach(o=>{
+        const buy=o.id?cur.buy.concat([o.id]):cur.buy;
+        const c2=cur.c+o.c;
+        const key=nx+'|'+buy.slice().sort().join(',');
+        if(uniq[key]!==undefined)return;uniq[key]=1;
+        if(seen[key]!==undefined&&seen[key]<=c2)return;
+        seen[key]=c2;
+        q.push({id:nx,c:c2,path:cur.path.concat([nx]),buy:buy});
+      });
+    });
+  }
+  return null;
+}
 function gateMsg(id){
   if(S.comp[id]>0)return '';
-  const need=ALLN.filter(n=>n.unlock&&n.unlock.includes(id));
-  if(need.length&&!need.some(n=>P.nodes.includes(n.id))){
-    const list=need.map(n=>n.nm+' <b>EP'+n.c+'</b>').join(' 또는 ');
-    return '<div class="gate lock">수용체가 없다 — '+list
-      +' 필요<button onclick="genomeSheet()">진화 트리 열기 ▸</button></div>';
+  const need=k=>ALLN.filter(n=>n.unlock&&n.unlock.includes(k))
+    .filter(n=>!P.nodes.includes(n.id)).sort((a,b)=>a.c-b.c);
+  const r=cheapPath(id);
+  if(r){
+    const left=r.buy.slice();
+    const steps=r.path.map(k=>{
+      const x=COMPS.find(y=>y.id===k);
+      const hit=left.findIndex(id=>{const n=N(id);return n.unlock&&n.unlock.includes(k)});
+      if(hit<0)return x.nm;
+      const n=N(left[hit]);left.splice(hit,1);
+      return x.nm+' <b>+'+n.nm+' EP'+n.c+'</b>';
+    }).join(' → ');
+    const from=COMPS.find(c=>c.id===ADJ[id].find(a=>S.comp[a]>=20));
+    if(r.path.length===1&&!r.ep&&from)
+      return '<div class="gate go">침투 준비됨 — '+from.nm+'에서 넘어간다</div>';
+    return '<div class="gate '+(r.ep?'lock':'near')+'">여기까지 — '+steps
+      +(r.ep?' <b>총 EP'+r.ep+'</b><button onclick="genomeSheet()">진화 트리 ▸</button>':'')+'</div>';
   }
-  const from=ADJ[id].filter(a=>S.comp[a]>=20);
-  if(!from.length){
-    const nm=ADJ[id].map(a=>{const x=COMPS.find(y=>y.id===a);
-      return x.nm+'('+Math.round(S.comp[a]||0)+'%)'}).join(' · ');
-    return '<div class="gate near">인접 기관을 20% 이상 점유해야 들어갈 수 있다 — '+nm+'</div>';
-  }
-  return '<div class="gate go">침투 준비됨 — 인접 '
-    +COMPS.find(y=>y.id===from[0]).nm+'에서 넘어간다</div>';
+  const nd=need(id);
+  if(nd.length)
+    return '<div class="gate lock">수용체가 없다 — '
+      +nd.map(n=>n.nm+' <b>EP'+n.c+'</b>').join(' 또는 ')
+      +' 필요<button onclick="genomeSheet()">진화 트리 ▸</button></div>';
+  const nm=ADJ[id].map(a=>{const x=COMPS.find(y=>y.id===a);
+    return x.nm+'('+Math.round(S.comp[a]||0)+'%)'}).join(' · ');
+  return '<div class="gate near">인접 기관을 20% 이상 점유해야 들어갈 수 있다 — '+nm+'</div>';
 }
 const ADJ={nasal:['phar','cns'],phar:['nasal','bron','gut'],bron:['phar','alv'],alv:['bron','blood'],
  blood:['alv','liver','gut','cns'],gut:['phar','blood'],liver:['blood'],cns:['nasal','blood']};
@@ -650,7 +692,7 @@ function newHost(){
    evQ:[],flora:72,bact:0,fung:0,seenB:false,seenF:false,seenFl:false,dname:'',nameChanged:null};
   COMPS.forEach(c=>{S.comp[c.id]=c.entry?8:0;S.dmg[c.id]=0});
   P.epBase+=4;
-  if(P.nodes.includes('integ'))COMPS.forEach(c=>{if(c.entry)S.comp[c.id]=20});
+  if(P.nodes.includes('integrate'))COMPS.forEach(c=>{if(c.entry)S.comp[c.id]=20});  /* 프로바이러스가 남아 다음 숙주에서 앞서 출발한다 */
   sel='nasal';say('비강 점막 침투 — 초기 점유 '+S.comp.nasal.toFixed(0)+'%','hi');
 }
 const AICON={target:'act_inv',virus:'act_burst',moon:'act_hide',dna:'act_mut',sleep:'act_dorm',burst:'act_burst',ap:'act_ap'};
@@ -706,26 +748,26 @@ A:{nm:'수용체·진입',col:'#3fe0ad',ang:-90,nodes:[
   fx:{inv:1.35,dmg:1.2,alert:1.15,fit:4},req:['sia26','sia23','ace2']},
  {id:'tmprss',t:2,c:2,nm:'TMPRSS2 의존 막융합',bs:'표면 프로테아제 경유 진입 — 엔도솜을 거치지 않아 제한인자를 피함',
   p:['기도 구획 침투 ×1.3 · IFITM 제한 회피'],n:['해당 효소가 적은 구획에서는 효과 없음'],
-  fx:{rec:{bron:1.3,alv:1.3},inv:1.1,fit:3},req:['furin']},
+  fx:{rec:{bron:1.3,alv:1.3},inv:1.1,fit:3},req:['hspg','sia26','ace2']},
  {id:'cathep',t:2,c:2,nm:'엔도솜 카텝신 경로',bs:'저pH 의존 막융합(인플루엔자 HA 구조 전환)',
   p:['프로테아제 없는 구획도 침투 가능 ×1.25'],n:['근대 이후 약물(엔도솜 산성화 억제)에 −20%'],
-  fx:{inv:1.25,fit:2,special:'acidDep'},req:['furin','hspg']},
+  fx:{inv:1.25,fit:2,special:'acidDep'},req:['hspg','sia23']},
  {id:'avid',t:3,c:3,nm:'수용체 결합 친화도 상승',bs:'H9N2에서 보고된 결합 친화도 증가 — 항체 중화 탈출과 인수공통 잠재력 동반',
   p:['침투 ×1.3 · 중화항체 영향 −25%'],n:['세포 외 안정성 ×0.75','숙주 범위 좁아짐'],
-  fx:{inv:1.3,abRes:.25,shed:.75,fit:6},req:['tmprss','cathep']},
+  fx:{inv:1.3,abRes:.25,shed:.75,fit:6},req:['sia26','sia23','ace2']},
  {id:'ntcp',t:3,c:3,nm:'NTCP 결합(간친화)',bs:'B형 간염 바이러스의 간세포 담즙산 수송체 이용',
   p:['간 개방 · 간 복제 ×2.4','만성 경과 → 숙주 생존 연장'],n:['황달 → 들킴 ×1.2','상기도 복제 ×0.75'],
-  fx:{rec:{liver:2.4,nasal:.75,phar:.75},alert:1.2,drain:-.4,fit:5},unlock:['liver'],req:['ace2','avid'],mod:'만성'},
+  fx:{rec:{liver:2.4,nasal:.75,phar:.75},alert:1.2,drain:-.4,fit:5},unlock:['liver'],req:['hspg','avid'],mod:'만성'},
  {id:'cd4',t:3,c:3,nm:'CD4·CCR5 결합',bs:'HIV gp120의 CD4 결합 후 CCR5 보조수용체 이용',
   p:['림프 조직 복제 ×1.8 · 적응면역 성숙 −35%'],n:['CCR5-Δ32 숙주에는 무효','전파 경로가 체액으로 한정'],
-  fx:{rec:{blood:1.8},tRes:.65,shed:.6,fit:6},req:['hspg','ace2']},
+  fx:{rec:{blood:1.8},tRes:.65,shed:.6,fit:6},req:['hspg','avid']},
  {id:'bbb',t:4,c:4,nm:'혈액뇌장벽 통과',bs:'광견병·일본뇌염의 신경 침습(축삭 역행 수송)',
   p:['중추신경 개방 · 점수 ×1.8','면역 사각지대 → 항체 영향 −50%'],
   n:['조직 손상 ×1.6','침습 즉시 최고 등급 치료'],fx:{rec:{cns:1.3},abRes:.5,dmg:1.6,score:1.8,fit:8},
-  unlock:['cns'],req:['avid','cd4'],mod:'신경친화성'},
+  unlock:['cns'],req:['avid','synapse'],mod:'신경친화성'},
  {id:'zoon',t:4,c:5,nm:'종간 장벽 돌파',bs:'α2,3→α2,6 수용체 선호 전환이 인수공통 전파의 관문으로 보고됨',
   p:['다른 종으로 전파 가능 · 점수 ×2.2','숙주 사망해도 계통 존속'],n:['적합도 −15%','인류 면역 축적 가속'],
-  fx:{score:2.2,fit:15,special:'zoonosis'},req:['avid','sia26']}
+  fx:{score:2.2,fit:15,special:'zoonosis'},req:['sia23','tropism']}
 ]},
 B:{nm:'복제·유전체',col:'#6fd3f5',ang:-38,nodes:[
  {id:'lowfid',t:1,c:1,nm:'저충실도 중합효소',bs:'RNA 바이러스의 준종(quasispecies) 형성 — 오류율 10⁻³~10⁻⁵',
@@ -733,13 +775,13 @@ B:{nm:'복제·유전체',col:'#6fd3f5',ang:-38,nodes:[
   fx:{shed:.88,fit:3,special:'fastPol'}},
  {id:'exon',t:2,c:3,nm:'ExoN 교정효소',bs:'코로나바이러스 nsp14의 3′→5′ 교정 — 대형 RNA 게놈을 가능하게 함',
   p:['적합도 비용 −40% · 진화점수 +2'],n:['변이 성공률 −60% → 항체 회피 어려움'],
-  fx:{fitCut:.4,ep:2,special:'proof'},req:['lowfid']},
+  fx:{fitCut:.4,ep:2,special:'proof'},excl:['lowfid']},
  {id:'segment',t:2,c:2,nm:'분절 게놈',bs:'인플루엔자의 8분절 — 동시감염 시 재편성(reassortment)',
   p:['항원 대변이 해금','동시감염 시 형질 교체'],n:['입자 조립 실패 ×1.3 → 전파 ×0.85'],
-  fx:{shed:.85,special:'seg'},req:['lowfid']},
+  fx:{shed:.85,special:'seg'},req:['lowfid','recomb']},
  {id:'recomb',t:2,c:2,nm:'템플릿 전환 재조합',bs:'코로나·피코르나의 중합효소 점프에 의한 재조합',
   p:['유전자 블록 교체 → 변이 실패율 −30%'],n:['재조합 결손 → 복제 수율 ×0.95'],
-  fx:{yld:.95,fit:2,special:'recomb'},req:['lowfid']},
+  fx:{yld:.95,fit:2,special:'recomb'},req:['lowfid','exon']},
  {id:'shift',t:3,c:4,nm:'항원 대변이',bs:'H1N1→H2N2 전환처럼 표면 항원이 통째로 교체되는 현상',
   p:['인류 축적 면역 전부 무효화(1회) · 점수 ×1.7'],n:['사용 후 3턴간 복제 수율 ×0.6','적합도 −15%'],
   fx:{score:1.7,fit:15,special:'shift'},req:['segment']},
@@ -750,7 +792,7 @@ B:{nm:'복제·유전체',col:'#6fd3f5',ang:-38,nodes:[
   p:['진화점수 +3'],n:['복제 수율 ×0.9'],fx:{ep:3,yld:.9},req:['exon','recomb']},
  {id:'bigdna',t:4,c:5,nm:'대형 dsDNA 게놈',bs:'두창·헤르페스 — 면역조절 유전자를 다수 적재 가능',
   p:['진화점수 +6 · 적합도 비용 −30%'],n:['복제 속도 ×0.78','항원 변이 불가'],
-  fx:{ep:6,fitCut:.3,yld:.78,special:'nomut'},req:['exon','compact']}
+  fx:{ep:6,fitCut:.3,yld:.78,special:'nomut'},req:['exon'],excl:['shift','lowfid']}
 ]},
 C:{nm:'전파',col:'#9ad66a',ang:14,nodes:[
  {id:'shed',t:1,c:1,nm:'배출량 증대',bs:'상기도 고바이러스혈증이 전파력과 상관',
@@ -765,10 +807,10 @@ C:{nm:'전파',col:'#9ad66a',ang:14,nodes:[
   fx:{route:{alv:2.2},fit:8},req:['shed']},
  {id:'nonenv',t:2,c:2,nm:'비외피 캡시드',bs:'노로·로타의 환경 내성 — 건조·세제에 강함',
   p:['체외 생존 ×6 · 분변-구강 경로 +0.5'],n:['세포 융합 불가(융합 노드 차단)','폐포 복제 ×0.6'],
-  fx:{route:{gut:.5},shed:1.4,rec:{alv:.6},fit:4,special:'nofuse'},unlock:['gut'],req:['shed'],mod:'장관친화성'},
+  fx:{route:{gut:.5},shed:1.4,rec:{alv:.6},fit:4,special:'nofuse'},excl:['compl','vector','fuse'],unlock:['gut'],req:['shed'],mod:'장관친화성'},
  {id:'vector',t:3,c:3,nm:'매개체 적응(아르보)',bs:'뎅기·지카의 모기 매개 — 격리로 끊기지 않음',
   p:['혈류 경로 +1.8 · 격리 효과 −50%'],n:['기후 의존 — 고대·중세에서 효과 최대'],
-  fx:{route:{blood:1.8},fit:8,special:'vector'},req:['aero','nonenv']},
+  fx:{route:{blood:1.8},fit:8,special:'vector'},req:['aero','vasc']},
  {id:'presym',t:3,c:4,nm:'발증 전 전파',bs:'SARS-CoV-2에서 증상 전 전파가 상당 비율로 보고됨',
   p:['증상 전부터 최대 배출 ×1.6 · 들킴 ×0.8'],n:['복제 수율 ×0.9','적합도 −12%'],
   fx:{shed:1.6,alert:.8,yld:.9,fit:12},req:['aero'],mod:'불현성'},
@@ -793,7 +835,7 @@ D:{nm:'병원성',col:'#e2554a',ang:66,nodes:[
   fx:{score:1.3,drain:1.4,fit:10},req:['vasc']},
  {id:'neuro',t:4,c:5,nm:'신경 변성 유도',bs:'광견병의 치명적 뇌염 — 치료 개입이 거의 듣지 않음',
   p:['점수 ×2.5 · 치료 효과 무력화'],n:['숙주 사망 거의 확정','전파 창구 소멸'],
-  fx:{score:2.5,drain:2,fit:14,special:'fatal'},req:['cytok','dic']}
+  fx:{score:2.5,drain:2,fit:14,special:'fatal'},req:['bbb']}
 ]},
 E:{nm:'면역 회피',col:'#c08ae8',ang:118,nodes:[
  {id:'glyc',t:1,c:2,nm:'글라이칸 실드',bs:'HIV gp120·인플루엔자 HA의 당사슬 차폐 — 항체 탈출의 적합도 비용을 보상',
@@ -839,16 +881,16 @@ F:{nm:'지속·조직친화',col:'#e8b354',ang:205,nodes:[
   fx:{abRes:.55,spread:.6,shed:.8,fit:7},req:['fuse']},
  {id:'chronic',t:2,c:3,nm:'만성 보균 상태',bs:'HBV 보균자의 수십 년 지속 배출',
   p:['숙주 소모 ×0.5 → 장기 전파','치료 저항 +30%'],n:['복제 수율 ×0.75','점수 ×0.8'],
-  fx:{drain:-.5,yld:.75,score:.8,fit:9,special:'chronic'},req:['fuse'],mod:'만성'},
+  fx:{drain:-.5,yld:.75,score:.8,fit:9,special:'chronic'},req:['vflip','ntcp'],mod:'만성'},
  {id:'ganglion',t:3,c:3,nm:'신경절 잠복',bs:'HSV의 삼차신경절 잠복과 주기적 재활성',
   p:['면역압이 높을 때 자동 잠복 — 박멸 회피'],n:['잠복 동안 전파 0','적합도 −8%'],
-  fx:{fit:8,special:'ganglion'},req:['synapse','chronic']},
+  fx:{fit:8,special:'ganglion'},req:['vflip','bbb']},
  {id:'tropism',t:3,c:3,nm:'조직 친화성 확장',bs:'다중 수용체 이용(광견병 등)으로 숙주 내 장기 범위 확대',
   p:['모든 구획 복제 ×1.2 · 수용체 특화 패널티 무효'],n:['적합도 −10%','복제 수율 ×0.9'],
   fx:{recAll:1.2,yld:.9,fit:10,special:'noPenalty'},req:['chronic']},
  {id:'oncogene',t:4,c:4,nm:'숙주 증식 유도',bs:'HPV E6/E7, EBV LMP1 — 감염 세포를 증식시켜 저장소를 늘린다',
   p:['점유율 자연 감소 차단 · 점유 상한 +10'],n:['장기 경과 — 전파 점수 ×0.85','적합도 −9%'],
-  fx:{score:.85,fit:9,special:'onco'},req:['ganglion','tropism']}
+  fx:{score:.85,fit:9,special:'onco'},req:['chronic','vflip']}
 ]},
 G:{nm:'미생물 생태',col:'#7f8fd8',ang:265,nodes:[
  {id:'mucin',t:1,c:1,nm:'점액층 돌파',bs:'점액 뮤신층이 1차 방어 — 분해해야 상피에 닿는다',
@@ -872,7 +914,7 @@ G:{nm:'미생물 생태',col:'#7f8fd8',ang:265,nodes:[
  {id:'ecosystem',t:4,c:5,nm:'혼합 감염 생태',bs:'바이러스·세균·진균이 한 숙주에서 공존하며 서로의 병독성을 올리는 상태',
   p:['세균·진균 활성이 높을수록 복제 수율 상승(최대 ×1.4) · 들킴 −35%'],
   n:['숙주 소모 ×1.8','치료가 시작되면 전부 노출'],
-  fx:{special:'ecoKey',drain:.8,alert:.65,fit:12},req:['mycoflex','bacteriocin']}
+  fx:{special:'ecosystem',drain:.8,alert:.65,fit:12},req:['mycoflex','bacteriocin']}
 ]}
 };
 /* ═══ 진화 트리 배치: CAT(실제 기전 노드) → 방사형 그래프 ═══ */
@@ -1343,19 +1385,21 @@ function invadeFX(nm,ok,done){
 /* ═══ 효과 엔진 ═══ */
 function FX(){
   const F={rec:{},recAll:1,inv:1,yld:1,dmg:1,shed:1,route:{},alert:1,abRes:0,ifnRes:0,tRes:1,
-    extRes:0,mp:1,fit:0,fitCut:0,cap:0,ep:0,bactDown:0,score:1,drainAdd:0,spread:1,abDecay:0,innateSelf:1,sp:{}};
+    extRes:0,mp:1,fit:0,fitCut:0,cap:0,ep:0,bactDown:0,bactUp:0,score:1,drainAdd:0,spread:1,abDecay:0,innateSelf:1,sp:{}};
   P.nodes.forEach(id=>{
     const n=N(id),f=n.fx||{};
     if(f.rec)for(const k in f.rec)F.rec[k]=(F.rec[k]||1)*f.rec[k];
     if(f.route)for(const k in f.route)F.route[k]=(F.route[k]||0)+f.route[k];
     ['recAll','inv','yld','dmg','shed','alert','tRes','mp','score','spread','innateSelf'].forEach(k=>{if(f[k])F[k]*=f[k]});
-    ['fit','cap','abDecay','fitCut','ep','bactDown'].forEach(k=>{if(f[k])F[k]+=f[k]});
+    ['fit','cap','abDecay','fitCut','ep','bactDown','bactUp'].forEach(k=>{if(f[k])F[k]+=f[k]});
     ['abRes','extRes'].forEach(k=>{if(f[k])F[k]=1-(1-F[k])*(1-f[k])});
     if(f.ifnRes)F.ifnRes=1-(1-F.ifnRes)*(1-f.ifnRes);
     if(f.drain)F.drainAdd+=f.drain;
     if(f.special)F.sp[f.special]=true;
   });
   if(F.sp.noPenalty)for(const k in F.rec)if(F.rec[k]<1)F.rec[k]=1;
+  /* NK 회피: MHC를 내렸을 때 NK가 물어뜯던 몫을 정확히 돌려놓는다 */
+  if(F.sp.nkEvade&&P.nodes.includes('mhc1'))F.dmg/=1.25;
   /* 向性을 넓힐수록 급격히 비싸진다 — 모든 문을 여는 열쇠는 어느 문도 잘 열지 못한다.
      하나는 공짜, 둘부터 제곱으로 붙는다. 범친화성(noPenalty)을 찍은 경우만 면제. */
   F.trop=ALLN.filter(n=>n.unlock&&n.unlock.length&&P.nodes.includes(n.id)).length;
@@ -1389,13 +1433,17 @@ const FAIL=[['alv',70,30,3.2,'호흡부전'],['cns',55,45,3.8,'뇌염'],
             ['blood',65,35,2.4,'파종성 혈관내 응고'],['liver',75,25,1.9,'간부전']];
 const organFail=()=>FAIL.reduce((a,[k,th,sp,w])=>
   a+(S.dmg[k]>th? Math.min(1,(S.dmg[k]-th)/sp)*w : 0),0);
-const temp=()=>Math.min(41.6,36.6+(S.innate/100)*3.2+(tDmg()/100)*2.6+(S.treat&&E().cure==='bleed'?-.3:0));
+/* 미끼수용체가 IL-1·TNF·인터페론을 가로채면 열이 오르지 않는다 */
+const temp=()=>Math.min(41.6,36.6+((S.innate/100)*3.2+(tDmg()/100)*2.6)*(F&&F.sp.antifever?.4:1)
+  +(S.treat&&E().cure==='bleed'?-.3:0));
 const spo2=()=>Math.max(70,Math.round(99-(S.comp.alv/100)*(S.dmg.alv/100)*34-(S.comp.bron/100)*3));
 const tempF=()=>{const t=temp();return t<37.5?1:t<39?.86:t<40.5?.72:.56};
 function yieldF(){
   const I=(S.innate/100)*.65*(1-F.ifnRes);
   const A=(S.ab/100)*(1-F.abRes)*F.tRes;
   let med=1;if(S.treat)med=E().cure==='antiviral'?.35:E().cure==='serum'?.62:1.08;
+  /* 엔도솜 산성화를 막는 약(클로로퀸 계열)은 저pH 융합에만 듣는다 */
+  if(S.treat&&F.sp.acidDep&&E().dxMax>=4)med*=.8;
   if(S.treat&&F.sp.chronic)med=Math.min(1,med+.3);
   if(S.treat&&F.sp.latent)med=Math.min(1,med+.5);
   if(S.treat&&F.sp.fatal)med=1;
@@ -1478,6 +1526,8 @@ function microbes(){
   let bg=0;
   if(dmg>28||abx)bg=(dmg/100)*3.2*bactRoom+(abx?2.2:0);
   if(S.admit)bg+=1.4;                                  // 원내 감염
+  bg+=F.bactUp*bactRoom;                               // 점액 파괴·염증이 세균에 자리를 내준다
+  if(F.sp.mucin)S.flora=Math.max(0,S.flora-1.1);       // 뮤신층을 걷어내면 상재균이 먼저 밀린다
   S.bact=Math.max(0,Math.min(100,S.bact+bg-(F.sp.antiBact?6:0)-F.bactDown-(S.treat&&E().dxMax>=6?2.5:0)));
   // 진균
   const immLow=(S.innate<25)||(S.treat&&E().cure==='antiviral'&&S.icu)||F.ifnRes>.5;
@@ -1579,7 +1629,12 @@ function act(k){
     if(S.mp<90)return say('에너지 부족','bad');
     S.mp-=90;S.ap=0;
     let pr=.7+(F.sp.fastPol?.2:0)-(F.sp.proof?.42:0);
-    if(Math.random()<pr){S.ab=Math.max(0,S.ab-45);S.treat=false;S.mutOK++;say('변이 성공 — 항체 회피','hi')}
+    /* 재조합: 통째로 갈아끼우니 실패가 줄어든다 */
+    if(F.sp.recomb)pr=1-(1-pr)*.7;
+    let hit=Math.random()<pr;
+    /* 분절 게놈: 한 분절이 틀려도 다른 조합으로 다시 맞춰 본다 */
+    if(!hit&&F.sp.seg&&Math.random()<pr){hit=true;say('[분절 재편성] 다시 맞춰 냈다','hi')}
+    if(hit){S.ab=Math.max(0,S.ab-45);S.treat=false;S.mutOK++;say('변이 성공 — 항체 회피','hi')}
     else say('변이 실패 — 결손 입자','bad');
   }
   if(k==='dorm'){if(S.ap<2)return;S.ap=0;S.dorm=true;say('잠복 전환')}
@@ -1612,12 +1667,20 @@ function endTurn(){
   S.failSeen=S.failSeen||{};
   FAIL.forEach(([k,th,,,nm])=>{if(S.dmg[k]>th&&!S.failSeen[k]){S.failSeen[k]=1;
     say('['+COMPS.find(c=>c.id===k).nm+'] '+nm+' — 숙주가 빠르게 무너진다','bad')}});
+  /* 숙주 증식 유도: 감염 세포를 살려 키운다 — 점유가 저절로 줄지 않고 상한이 올라간다 */
+  if(F.sp.onco)COMPS.forEach(c=>{if(S.comp[c.id]>0)
+    S.comp[c.id]=Math.min(100,S.comp[c.id]+0.8)});
+  /* 신경절 잠복: 면역압이 높아지면 스스로 숨는다 — 박멸을 피한다 */
+  if(F.sp.ganglion&&!S.dorm&&(S.ab>62||S.innate>78)){S.dorm=true;S.dormT=0;
+    say('[신경절 잠복] 면역압이 높다 — 스스로 숨는다','hi')}
   S.innate=Math.min(100,S.innate+loadLog()*1.6*(1-F.ifnRes)*F.innateSelf);
   if(S.day>=3)S.adaptive=Math.min(100,S.adaptive+5.5);
   if(S.adaptive>45)S.ab=Math.min(100,S.ab+4.5);
   S.ab=Math.max(0,S.ab-F.abDecay);
+  /* 세포 밖으로 나온 입자가 보체·포식에 깎인다 — 보체 조절단백을 걸치면 덜 깎인다 */
   if(S.ab>0)COMPS.forEach(c=>{if(S.comp[c.id]>0)
-    S.comp[c.id]=Math.max(0,S.comp[c.id]-(S.ab/100)*3.4*(1-F.abRes)*F.tRes*(c.id==='cns'?.5:1))});
+    S.comp[c.id]=Math.max(0,S.comp[c.id]
+      -(S.ab/100)*3.4*(1-F.abRes)*(1-F.extRes)*F.tRes*(c.id==='cns'?.5:1))});
   microbes();
   S.alert=Math.min(100,S.alert+(tDmg()*.22+(temp()>=38?3:0)+(spo2()<94?6:0))*F.alert);
   const need=[0,6,22,38,54,70,86];
@@ -1654,14 +1717,19 @@ function endTurn(){
   else S.sev=sv;
 
   if(load()<1&&!F.sp.latent)finish('박멸','검출 한계 아래로 떨어졌다.');
-  else if(S.host<=0){P.deaths++;finish(S.sec>0?'숙주 사망 · 전파 성공':'숙주 사망 · 막다른 길',
-    S.sec>0?'숙주는 죽었지만 '+S.sec+'명에게 넘어갔다.':'숙주와 함께 끝났다. 아무에게도 가지 못했다.')}
+  else if(S.host<=0){P.deaths++;
+    /* 종간 장벽을 넘어 둔 계통은 사람이 끊겨도 동물 저장소에 남는다 */
+    if(S.sec<=0&&F.sp.zoonosis)finish('숙주 사망 · 동물 저장소 존속',
+      '사람에게는 가지 못했다. 그러나 계통은 다른 종 안에 남아 다음 기회를 기다린다.');
+    else finish(S.sec>0?'숙주 사망 · 전파 성공':'숙주 사망 · 막다른 길',
+      S.sec>0?'숙주는 죽었지만 '+S.sec+'명에게 넘어갔다.':'숙주와 함께 끝났다. 아무에게도 가지 못했다.')}
   else if(S.day>=16&&S.ab>70)finish(S.sec>0?'완치 · 전파 성공':'완치 · 박멸',
     F.sp.latent?'겉으로는 나았다. 당신은 신경절에 남아 있다.':'중화항체가 자리잡았다.');
   S.ap=2;seedParts();render();if(TUT.on)tutCheck('next');
   if(typeof saveGame==='function')saveGame();   // 턴이 끝날 때마다 담아 둔다
 }
-function finish(t,b){S.over={t,b,next:S.sec>0&&P.hostIdx<HOSTS.length-1};
+/* 동물 저장소가 있으면 사람에게 못 갔어도 계통은 이어진다 */
+function finish(t,b){S.over={t,b,next:(S.sec>0||(F&&F.sp.zoonosis))&&P.hostIdx<HOSTS.length-1};
   P.herd+=S.sec*6+8;say('── '+t,'hi');showEnd();
   /* 더 갈 데가 없으면 기록을 지운다 — 끝난 판으로 되돌아가지 않게 */
   if(typeof saveGame==='function'){S.over.next?saveGame():(typeof wipeSave==='function'&&wipeSave())}}
@@ -1873,8 +1941,16 @@ function canTake(n){
   if(!trigOK(n.trig))return false;
   if(n.req&&!n.req.some(r=>has(r)))return false;
   if(kbUsed()+n.kb>capNow())return false;
-  if(n.needsFuse&&P.nodes.some(i=>(N(i).fx||{}).special==='nofuse'))return false;
+  if((n.needsFuse||(n.fx&&n.fx.needsFuse))&&P.nodes.some(i=>(N(i).fx||{}).special==='nofuse'))return false;
+  if(exclHit(n).length)return false;
   return true;
+}
+/* 양립할 수 없는 형질 — 한쪽을 가지면 다른 쪽을 가질 수 없다. 방향은 양쪽 모두 본다 */
+function exclHit(n){
+  const out=[];
+  (n.excl||[]).forEach(id=>{if(has(id))out.push(id)});
+  ALLN.forEach(m=>{if(m.excl&&m.excl.includes(n.id)&&has(m.id)&&out.indexOf(m.id)<0)out.push(m.id)});
+  return out;
 }
 
 
@@ -1891,7 +1967,8 @@ function tvFit(){
 function nodeState(n){
   if(has(n.id))return 'own';
   if(n.trig&&!trigOK(n.trig))return 'lock';
-  if(n.needsFuse&&P.nodes.some(i=>(N(i).fx||{}).special==='nofuse'))return 'block';
+  if((n.needsFuse||(n.fx&&n.fx.needsFuse))&&P.nodes.some(i=>(N(i).fx||{}).special==='nofuse'))return 'block';
+  if(exclHit(n).length)return 'block';
   if(!reachable(n.id))return 'far';
   if(n.cost>epLeft())return 'poor';
   return 'ok';
@@ -1974,7 +2051,9 @@ function popHTML(n){
   const st=nodeState(n),own=has(n.id);
   const kindNm={core:'시작',key:'정점',notable:'상위',minor:'기본'}[n.kind];
   const why={lock:'트리거 미달성 — '+(n.trig?TG(n.trig).nm:''),far:'찍은 노드와 이어져 있지 않다',
-    poor:'진화점수 부족 — '+n.cost+' 필요, '+epLeft()+' 남음',block:'보유 형질과 양립 불가'}[st];
+    poor:'진화점수 부족 — '+n.cost+' 필요, '+epLeft()+' 남음',
+    block:(exclHit(n).length? '양립 불가 — '+exclHit(n).map(i=>N(i).nm).join('·')+' 을(를) 이미 보유'
+                            : '세포융합 형질과 양립 불가')}[st];
   let b='';
   if(own&&n.kind!=='core')b='<button class="act rm" onclick="toggleNode(\''+n.id+'\')">해제 — EP '+n.cost+' 회수</button>';
   else if(!own&&st==='ok')b='<button class="act" onclick="toggleNode(\''+n.id+'\')">획득 — EP '+n.cost+'</button>';
