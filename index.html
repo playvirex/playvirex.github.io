@@ -273,6 +273,12 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 #title:before{content:"";position:absolute;inset:0;
  background:linear-gradient(90deg,#000 0%,#000c 32%,#0000 68%)}
 #title.out{opacity:0;pointer-events:none}
+.tres{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.tres button{font:inherit;font-size:15px;padding:11px 18px;border-radius:4px;cursor:pointer;
+ border:1px solid rgba(63,224,173,.45);background:rgba(8,18,16,.72);color:#cfe8dd;
+ backdrop-filter:blur(4px);text-align:left}
+.tres button#tResume{background:var(--accent);color:#04120d;border-color:var(--accent);font-weight:700}
+.tres button small{display:block;font-family:var(--m);font-size:11.5px;opacity:.78;font-weight:400;margin-top:2px}
 #title .tin{position:relative;padding:0 max(24px,6vw);width:100%;max-width:1200px;margin:0 auto;box-sizing:border-box}
 #title h2{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;font-weight:700;
  font-size:clamp(54px,11vw,140px);letter-spacing:.07em;line-height:1;color:#fff;text-shadow:0 0 40px #c0102080}
@@ -524,7 +530,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-170845';
+const BUILD='20261025-171520';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1508,11 +1514,14 @@ function endTurn(){
   else if(S.day>=16&&S.ab>70)finish(S.sec>0?'완치 · 전파 성공':'완치 · 박멸',
     F.sp.latent?'겉으로는 나았다. 당신은 신경절에 남아 있다.':'중화항체가 자리잡았다.');
   S.ap=2;seedParts();render();if(TUT.on)tutCheck('next');
+  if(typeof saveGame==='function')saveGame();   // 턴이 끝날 때마다 담아 둔다
 }
 function finish(t,b){S.over={t,b,next:S.sec>0&&P.hostIdx<HOSTS.length-1};
-  P.herd+=S.sec*6+8;say('── '+t,'hi');showEnd()}
+  P.herd+=S.sec*6+8;say('── '+t,'hi');showEnd();
+  /* 더 갈 데가 없으면 기록을 지운다 — 끝난 판으로 되돌아가지 않게 */
+  if(typeof saveGame==='function'){S.over.next?saveGame():(typeof wipeSave==='function'&&wipeSave())}}
 function nextHost(){P.hostIdx++;newHost();document.getElementById('ev').classList.remove('on');
-  seedParts();render();showBrief()}
+  seedParts();render();showBrief();if(typeof saveGame==='function')saveGame()}
 
 /* ═══ 캔버스 ═══ */
 const cv=document.getElementById('body'),cx=cv.getContext('2d');
@@ -2897,12 +2906,56 @@ if(window.ResizeObserver){
     .observe(document.getElementById('stage'));
 }
 
+/* ═══ 저장: 브라우저에 그대로 담아 둔다. 서버도 계정도 쓰지 않는다 ═══
+   F(형질 효과)는 P.nodes 에서 다시 계산되므로 담지 않는다. */
+const SKEY='virex.save.v2';
+function saveGame(){
+  try{localStorage.setItem(SKEY,JSON.stringify({v:2,t:Date.now(),P:P,S:S,sel:sel,build:BUILD}))}
+  catch(e){}
+}
+function peekSave(){
+  try{const r=JSON.parse(localStorage.getItem(SKEY));
+    return (r&&r.v===2&&r.P&&r.S)?r:null}catch(e){return null}
+}
+function loadGame(){
+  const r=peekSave();if(!r)return false;
+  try{
+    P=r.P;S=r.S;sel=r.sel||'nasal';
+    if(!P.nodes)P.nodes=['core'];if(!P.trig)P.trig=[];
+    F=FX();fitCanvas();seedParts();render();
+    return true;
+  }catch(e){return false}
+}
+function wipeSave(){try{localStorage.removeItem(SKEY)}catch(e){}}
+
 newHost();F=FX();fitCanvas();seedParts();render();loop();
 (function(){
   const t=document.getElementById('title');
   let started=false;
   const toGame=()=>{document.getElementById('intro').classList.remove('on');
     fitCanvas();seedParts();render();showBrief();};
+  /* 이어하기: 인트로와 브리핑을 건너뛰고 저장된 자리에서 바로 집어든다 */
+  const resume=()=>{if(started)return;started=true;
+    t.classList.add('out');setTimeout(()=>t.remove(),650);
+    if(!loadGame()){showBrief();return}
+    document.getElementById('ev').classList.remove('on');
+    say('이어하기 — D'+S.day+' '+HOSTS[P.hostIdx].t,'hi');
+  };
+  const sv=peekSave();
+  if(sv){
+    const d=document.createElement('div');d.className='tres';
+    const h=HOSTS[sv.P.hostIdx]||HOSTS[0];
+    d.innerHTML='<button id="tResume">이어하기 ▶ <small>'+(ERAS[h.era]||{nm:''}).nm
+      +' · D'+(sv.S.day||0)+' · '+h.t+'</small></button>'
+      +'<button id="tNew">처음부터</button>';
+    t.querySelector('.tin').appendChild(d);
+    d.addEventListener('click',e=>{
+      const b=e.target.closest('button');if(!b)return;
+      e.stopPropagation();
+      if(b.id==='tResume')resume();
+      else{wipeSave();go()}
+    });
+  }
   const go=()=>{if(started)return;started=true;
     t.classList.add('out');setTimeout(()=>t.remove(),650);
     const iv=document.getElementById('intro');iv.classList.add('on');
