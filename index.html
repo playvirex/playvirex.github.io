@@ -273,6 +273,20 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 #title:before{content:"";position:absolute;inset:0;
  background:linear-gradient(90deg,#000 0%,#000c 32%,#0000 68%)}
 #title.out{opacity:0;pointer-events:none}
+/* 막힌 칸의 이유를 그 자리에 적는다 */
+#pick .gate{margin-top:6px;padding:6px 9px;border-radius:3px;font-family:var(--m);font-size:12px;
+ line-height:1.6;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#pick .gate b{font-weight:700}
+#pick .gate.lock{background:rgba(232,179,84,.10);border-left:2px solid #e8b354;color:#f0d49a}
+#pick .gate.near{background:rgba(120,140,132,.10);border-left:2px solid #6c8a80;color:#b6cbc2}
+#pick .gate.go{background:rgba(63,224,173,.10);border-left:2px solid var(--accent);color:#9fe9cf}
+#pick .gate button{pointer-events:auto;font:inherit;font-size:11.5px;padding:3px 8px;border-radius:3px;
+ cursor:pointer;background:#e8b354;color:#201603;border:0;font-weight:700}
+/* 눌렸다는 것이 눈에 보여야 한다 */
+.acts button:not(:disabled):active{transform:translateY(1px);border-color:var(--accent)}
+@keyframes actfire{0%{box-shadow:0 0 0 0 rgba(63,224,173,.55)}100%{box-shadow:0 0 0 14px rgba(63,224,173,0)}}
+.acts button.fire{animation:actfire 420ms ease-out}
+.acts button:disabled{position:relative}
 /* 침투 연출 — 한 칸을 뚫는 1.4초 */
 #inv{position:fixed;inset:0;z-index:68;display:none;background:radial-gradient(ellipse 80% 80% at 50% 50%,#07201b 0%,#040b0a 60%,#010403 100%)}
 #inv.on{display:block}
@@ -551,7 +565,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-173234';
+const BUILD='20261025-213322';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -590,6 +604,29 @@ const COMPS=[
  {id:'liver',nm:'간',ic:'liver',yld:2.4,rec:.40,dmg:2.0,rc:'NTCP',xy:[203,278],r:20,shed:'없음'},
  {id:'cns',  nm:'중추신경',ic:'brain',yld:1.2,rec:.25,dmg:3.2,rc:'혈액뇌장벽 통과',xy:[150,26],r:18,shed:'없음'}
 ];
+/* 눌렀다는 신호를 먼저 주고 행동한다 — 반응이 없으면 눌린 줄을 모른다 */
+function fireAct(btn,k){
+  if(btn){btn.classList.remove('fire');void btn.offsetWidth;btn.classList.add('fire')}
+  act(k);
+}
+/* 칸이 막힌 이유를 그 자리에서 말해 준다 — 트리를 열어보기 전에 알아야 한다 */
+function gateMsg(id){
+  if(S.comp[id]>0)return '';
+  const need=ALLN.filter(n=>n.unlock&&n.unlock.includes(id));
+  if(need.length&&!need.some(n=>P.nodes.includes(n.id))){
+    const list=need.map(n=>n.nm+' <b>EP'+n.c+'</b>').join(' 또는 ');
+    return '<div class="gate lock">수용체가 없다 — '+list
+      +' 필요<button onclick="genomeSheet()">진화 트리 열기 ▸</button></div>';
+  }
+  const from=ADJ[id].filter(a=>S.comp[a]>=20);
+  if(!from.length){
+    const nm=ADJ[id].map(a=>{const x=COMPS.find(y=>y.id===a);
+      return x.nm+'('+Math.round(S.comp[a]||0)+'%)'}).join(' · ');
+    return '<div class="gate near">인접 기관을 20% 이상 점유해야 들어갈 수 있다 — '+nm+'</div>';
+  }
+  return '<div class="gate go">침투 준비됨 — 인접 '
+    +COMPS.find(y=>y.id===from[0]).nm+'에서 넘어간다</div>';
+}
 const ADJ={nasal:['phar','cns'],phar:['nasal','bron','gut'],bron:['phar','alv'],alv:['bron','blood'],
  blood:['alv','liver','gut','cns'],gut:['phar','blood'],liver:['blood'],cns:['nasal','blood']};
 const HOSTS=[
@@ -2091,11 +2128,12 @@ function render(){
   document.getElementById('pick').innerHTML=
    '<div class="nm"><span>'+ic(c.ic)+' '+c.nm+'</span><span>'+(S.comp[sel]>0?S.comp[sel].toFixed(0)+'%':'미점유')+'</span></div>'
   +'<div class="d">수용체 '+c.rc+' · 손상 '+S.dmg[sel].toFixed(0)+'% · 자원 ×'+c.yld.toFixed(1)
-  +' · 침투 ×'+(c.rec*recMul(sel)).toFixed(2)+' · 배출 '+c.shed+'</div>';
+  +' · 침투 ×'+(c.rec*recMul(sel)).toFixed(2)+' · 배출 '+c.shed+'</div>'
+  +gateMsg(sel);
 
   const canInv=S.comp[sel]===0&&openC(sel),ok=!S.over;
   const hl=TUT.on&&TUT.steps[TUT.i]?TUT.steps[TUT.i].hl:null;
-  const A=(k,icn,nm,sub,cond)=>'<button onclick="act(\''+k+'\')" '+(cond&&ok?'':'disabled')
+  const A=(k,icn,nm,sub,cond)=>'<button onclick="fireAct(this,\''+k+'\')" '+(cond&&ok?'':'disabled')
    +(hl===k?' class="hl"':'')+'><span class="ic aic" style="background-image:url('+IMG[AICON[icn]]+')"></span>'+nm+'<small>'+sub+'</small></button>';
   document.getElementById('acts').innerHTML=
    A('inv','target','침투','에너지 60 · AP1',canInv&&S.ap>0)
