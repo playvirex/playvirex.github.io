@@ -273,6 +273,15 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 #title:before{content:"";position:absolute;inset:0;
  background:linear-gradient(90deg,#000 0%,#000c 32%,#0000 68%)}
 #title.out{opacity:0;pointer-events:none}
+/* 침투 연출 — 한 칸을 뚫는 1.4초 */
+#inv{position:fixed;inset:0;z-index:68;display:none;background:radial-gradient(ellipse 80% 80% at 50% 50%,#07201b 0%,#040b0a 60%,#010403 100%)}
+#inv.on{display:block}
+#inv canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#inv .itx{position:absolute;left:0;right:0;bottom:12%;text-align:center;pointer-events:none}
+#inv .itx b{display:block;font-size:clamp(18px,3.4vw,30px);letter-spacing:.06em;color:#e6f3ed}
+#inv .itx i{display:block;margin-top:7px;font-family:var(--m);font-size:clamp(12px,1.7vw,16px);
+ letter-spacing:.2em;font-style:normal}
+#inv .itx i.ok{color:var(--accent)}#inv .itx i.no{color:var(--crit)}
 #devp{position:fixed;left:8px;bottom:8px;z-index:90;background:rgba(6,12,11,.93);
  border:1px solid #c8a34a;border-radius:4px;padding:8px 10px;font-family:var(--m);font-size:11.5px;
  color:#e8dcc0;display:flex;flex-direction:column;gap:4px;max-width:260px;backdrop-filter:blur(4px)}
@@ -465,6 +474,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
  setTimeout(function(){el.classList.add('out');setTimeout(function(){el.remove();},750);},2300);})();
 </script>
 <div id="intro"><canvas id="i3g"></canvas><canvas id="i3c"></canvas><button id="iskip">건너뛰기 ▶</button></div>
+<div id="inv"><canvas id="invg"></canvas><div class="itx"><b id="invNm"></b><i id="invSt"></i></div></div>
 <div id="title">
   <div class="tin"><h2>VIREX</h2><div class="tts">TOUCH TO START</div></div>
 </div>
@@ -541,7 +551,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-173119';
+const BUILD='20261025-173234';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -1225,6 +1235,74 @@ function intro3d(onEnd){
   INTRO.raf=requestAnimationFrame(draw);
 }
 
+/* ═══ 침투 연출: 비리온 하나가 조직 표면에 가서 붙는다 ═══
+   1.4초. 성공하면 수용체에 꽂히고, 실패하면 튕겨 나가 흩어진다. */
+const INV={on:false,raf:0,T:null,r:null,sc:null,cam:null,vir:null,rec:null};
+function invadeFX(nm,ok,done){
+  const box=document.getElementById('inv'), cv=document.getElementById('invg');
+  const T=(typeof GL!=='undefined'&&GL.T)||null;
+  if(!box||!cv||!T||!IPRE.virus){done&&done();return}        // 준비가 안 됐으면 건너뛴다
+  document.getElementById('invNm').textContent=nm;
+  const st=document.getElementById('invSt');
+  st.textContent='';st.className='';
+  box.classList.add('on');
+
+  if(!INV.r){
+    const r=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+    r.setClearColor(0x000000,0);
+    if(r.outputColorSpace!==undefined)r.outputColorSpace=T.SRGBColorSpace;
+    const sc=new T.Scene();
+    sc.add(new T.AmbientLight(0xbfe8dd,.5));
+    const k=new T.DirectionalLight(0xffffff,2.2);k.position.set(.4,.9,1);sc.add(k);
+    const f=new T.DirectionalLight(0x3fe0ad,1.1);f.position.set(-.7,-.4,.3);sc.add(f);
+    /* 조직 표면: 수용체가 점점이 박힌 판 */
+    const rg=new T.Group();
+    const dotG=new T.SphereGeometry(1,10,8);
+    const dotM=new T.MeshStandardMaterial({color:0x3fe0ad,emissive:0x1d7a60,
+      emissiveIntensity:1.4,roughness:.5,transparent:true,opacity:.92});
+    const N=90, dots=new T.InstancedMesh(dotG,dotM,N), m4=new T.Matrix4(), v3=new T.Vector3();
+    for(let i=0;i<N;i++){
+      const a=Math.random()*6.283, rr=Math.sqrt(Math.random())*150;
+      v3.set(Math.cos(a)*rr,Math.sin(a)*rr,-6+Math.random()*12);
+      const s=1.6+Math.random()*3.4;
+      dots.setMatrixAt(i,m4.compose(v3,new T.Quaternion(),new T.Vector3(s,s,s)));
+    }
+    rg.add(dots);sc.add(rg);
+    const cam=new T.PerspectiveCamera(42,1,1,3000);
+    INV.T=T;INV.r=r;INV.sc=sc;INV.cam=cam;INV.rec=rg;
+    const g=IPRE.virus.clone(true);
+    const bb=new T.Box3().setFromObject(g),sz=new T.Vector3();bb.getSize(sz);
+    const c=new T.Vector3();bb.getCenter(c);g.position.sub(c);
+    const h=new T.Group();h.add(g);h.scale.setScalar(2/(Math.max(sz.x,sz.y,sz.z)||1));
+    const hold=new T.Group();hold.add(h);sc.add(hold);INV.vir=hold;
+  }
+  const {r,sc,cam,vir,rec}=INV;
+  const DUR=1400; let t0=null;
+  cancelAnimationFrame(INV.raf);INV.on=true;
+  const fin=()=>{INV.on=false;cancelAnimationFrame(INV.raf);box.classList.remove('on');done&&done()};
+  const step=ts=>{
+    if(!t0)t0=ts;
+    const p=Math.min(1,(ts-t0)/DUR);
+    const W=box.clientWidth,H=box.clientHeight;
+    r.setPixelRatio(Math.min(1.5,devicePixelRatio||1));r.setSize(W,H,false);
+    cam.aspect=W/H;cam.updateProjectionMatrix();
+    /* 카메라는 표면 앞에 서 있고, 비리온이 멀리서 날아와 꽂힌다 */
+    cam.position.set(0,0,330);cam.lookAt(0,0,0);
+    rec.position.z=-170;
+    const e=1-Math.pow(1-Math.min(1,p/.72),3);          // 접근은 급정거하듯
+    vir.position.set(ok?0:(p>.72?(p-.72)/.28*210:0), ok?0:(p>.72?-(p-.72)/.28*120:0), 300-e*440);
+    vir.rotation.set(p*3.1,p*4.4,p*1.5);
+    const sc0=20+e*26;
+    vir.scale.setScalar(ok? sc0*(p>.8?1-(p-.8)*.5:1) : sc0*(p>.72?1-(p-.72)*1.6:1));
+    r.render(sc,cam);
+    if(p>.74&&!st.textContent){st.textContent=ok?'침투 성공':'침투 실패 — 입자 소실';st.className=ok?'ok':'no'}
+    if(p>=1)return fin();
+    INV.raf=requestAnimationFrame(step);
+  };
+  box.onclick=fin;                                      // 아무 데나 누르면 건너뛴다
+  INV.raf=requestAnimationFrame(step);
+}
+
 /* ═══ 효과 엔진 ═══ */
 function FX(){
   const F={rec:{},recAll:1,inv:1,yld:1,dmg:1,shed:1,route:{},alert:1,abRes:0,ifnRes:0,tRes:1,
@@ -1437,10 +1515,16 @@ function act(k){
     if(S.mp<60)return say('에너지 부족','bad');
     S.mp-=60;S.ap--;
     const p=.42*c.rec*recMul(sel)*F.inv*(1-S.ab/160*(1-F.abRes));
-    if(Math.random()<p){S.comp[sel]=5;say(c.nm+' 침투 성공','hi');
-      if(sel==='cns'){S.icu=true;say('중추신경 침습 — 최고 등급 치료','bad')}}
-    else say(c.nm+' 침투 실패 — 입자 소실');
-    seedParts();
+    const ok=Math.random()<p, tgt=sel;
+    /* 결과는 먼저 정하고, 연출이 끝난 뒤에 반영한다 */
+    const apply=()=>{
+      if(ok){S.comp[tgt]=5;say(c.nm+' 침투 성공','hi');
+        if(tgt==='cns'){S.icu=true;say('중추신경 침습 — 최고 등급 치료','bad')}}
+      else say(c.nm+' 침투 실패 — 입자 소실');
+      seedParts();render();
+    };
+    if(typeof invadeFX==='function')invadeFX(c.nm,ok,apply); else apply();
+    return;
   }
   if(k==='burst'){
     if(S.comp[sel]<=0)return;if(S.mp<45)return say('에너지 부족','bad');
