@@ -390,13 +390,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 @media (min-width:1180px){
  #app{display:grid;align-content:stretch;
    grid-template-columns:minmax(286px,340px) minmax(0,1fr) minmax(286px,340px);
-   grid-template-rows:auto minmax(0,1fr);
+   grid-template-rows:auto minmax(0,1fr) auto;
    column-gap:34px;padding-left:40px;padding-right:40px}
  .top{grid-column:1/-1;grid-row:1}
- #rail-l,#rail-r{display:flex;flex-direction:column;gap:6px;min-height:0;grid-row:2}
- #rail-l{grid-column:1;justify-content:flex-start;padding-top:6px}
- #rail-r{grid-column:3;justify-content:flex-end;padding-bottom:8px}
- #tut{grid-column:2;grid-row:2;align-self:end;margin-bottom:10px}
+ #rail-l,#rail-r{display:flex;flex-direction:column;gap:6px;min-height:0}
+ #rail-l{grid-column:1;grid-row:2;justify-content:flex-start;padding-top:6px}
+ #rail-r{grid-column:3;grid-row:2/4;justify-content:flex-end;padding-bottom:8px}
+ /* 안내도 가운데를 비켜 왼쪽 아래에 선다 */
+ #tut{grid-column:1;grid-row:3;align-self:end;max-width:none;margin:0 0 10px}
 
  /* 레일 안에서는 가로로 넓힐 이유가 없다 — 폭을 레일에 맞춘다 */
  .goal,#warnBox,.micro,#pick{max-width:none}
@@ -520,7 +521,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-105952';
+const BUILD='20261025-113522';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -2138,7 +2139,7 @@ function initGL(T){
       xb.rotation.x=tn.p;
       xb.traverse(m=>{if(m.isMesh&&m.material.uniforms){
         const u=m.material.uniforms;
-        u.uGain.value=0.30*tn.g;u.uRim.value=1.9;u.uDim.value=0.55*tn.d;
+        u.uGain.value=0.50*tn.g;u.uRim.value=2.25;u.uDim.value=0.78*tn.d;
         if(u.uTint)u.uTint.value.setHex(tn.c);
       }});
       GL.fig.visible=false;                   // 평면 그림은 숨긴다
