@@ -521,7 +521,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;li
 <div id="ev"><div class="card"><div class="hero" id="evHero"><div id="plx"><i id="plB"></i><i id="plM"></i><i id="plF"></i></div></div><div class="tx" id="evt"></div></div></div>
 
 <script>
-const BUILD='20261025-113522';
+const BUILD='20261025-115425';
 const IMG={ln_A:'assets/ln_A.webp',ln_B:'assets/ln_B.webp',ln_C:'assets/ln_C.webp',ln_D:'assets/ln_D.webp',ln_E:'assets/ln_E.webp',ln_F:'assets/ln_F.webp',ln_G:'assets/ln_G.webp',o_stand:'assets/o_stand.webp',o_sit:'assets/o_sit.webp',o_lean:'assets/o_lean.webp',o_bed:'assets/o_bed.webp',o_relief:'assets/o_relief.webp',f_stand:'assets/f_stand.webp',f_sit:'assets/f_sit.webp',f_lean:'assets/f_lean.webp',f_bed:'assets/f_bed.webp',f_relief:'assets/f_relief.webp',act_inv:'assets/act_inv.webp',act_burst:'assets/act_burst.webp',act_hide:'assets/act_hide.webp',act_mut:'assets/act_mut.webp',act_dorm:'assets/act_dorm.webp',act_ap:'assets/act_ap.webp',figureF:'assets/figureF.webp',figureOld:'assets/figureOld.webp',figure:'assets/figure.webp',bgtissue:'assets/bgtissue.webp',org_cns:'assets/org_cns.webp',org_liver:'assets/org_liver.webp',org_gut:'assets/org_gut.webp',org_blood:'assets/org_blood.webp',org_alv:'assets/org_alv.webp',org_bron:'assets/org_bron.webp',org_phar:'assets/org_phar.webp',org_nasal:'assets/org_nasal.webp',h3bg:'assets/h3bg.webp',h3mid:'assets/h3mid.webp',h3fg:'assets/h3fg.webp',h4bg:'assets/h4bg.webp',h4mid:'assets/h4mid.webp',h4fg:'assets/h4fg.webp',h2bg:'assets/h2bg.webp',h2mid:'assets/h2mid.webp',h2fg:'assets/h2fg.webp',naming:'assets/naming.webp',medAnc:'assets/medAnc.webp',medMed:'assets/medMed.webp',medInd:'assets/medInd.webp',imac:'assets/imac.webp',inet:'assets/inet.webp',itc:'assets/itc.webp',h1bg:'assets/h1bg.webp',h1mid:'assets/h1mid.webp',h1fg:'assets/h1fg.webp',body:'assets/body.webp',lungs:'assets/lungs.webp',virion:'assets/virion.webp',
  stand:'assets/stand.webp',sit:'assets/sit.webp',lean:'assets/lean.webp',bed:'assets/bed.webp',
  relief:'assets/relief.webp',care:'assets/care.webp',doctor:'assets/doctor.webp',
@@ -2250,11 +2250,21 @@ function glFrame(W,H,now){
 
   const yaw=B3.user+Math.sin((now-B3.t0)/2400)*0.46;
   const pit=-B3.pitch;
-  const band=W<820?0.42:(H<820?0.46:0.60);
+  let band=W<820?0.42:(H<820?0.46:0.60), cy=0;
+  /* 가운데가 비는 넓은 화면에서는 발끝까지 다 보여준다.
+     기관만 담던 띠 대신 전신 높이에 맞추고, 시선을 몸 한가운데로 내린다. */
+  if(W>=1180&&H>=600&&GL.body3){
+    const span=YBOT-YTOP, bh=span/0.55;              // 전신 = 622
+    const full=bh/(H>860?0.90:0.95);                 // 위아래 여백
+    /* 기관이 너무 작아지지 않게 하한을 둔다 */
+    band=Math.max(0.46,Math.min(band,span/full));
+    const top=span/2+14;                             // 정수리
+    cy=-((top-bh/2)*Math.max(0,(1.09-B3.z)/0.09));   // 기관을 확대하면 다시 0으로
+  }
   const fit=(YBOT-YTOP)/band;
   const d=(fit/2)/Math.tan(cam.fov*Math.PI/360)/B3.z;
   GL.dist=d;
-  const fx=B3.fx, fy=-B3.fy;
+  const fx=B3.fx, fy=-B3.fy-cy;
   cam.position.set(fx+Math.sin(yaw)*Math.cos(pit)*d, fy+Math.sin(pit)*d, Math.cos(yaw)*Math.cos(pit)*d);
   cam.lookAt(fx,fy,0);
   cam.updateProjectionMatrix();
